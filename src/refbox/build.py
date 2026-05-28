@@ -37,6 +37,61 @@ def _exists(p: Path) -> bool:
     return p.exists() and p.stat().st_size > 0
 
 
+# ── UCSC rmsk.txt.gz → BED6 / GTF converters ───────────────────────────────────
+# rmsk columns (17): bin, swScore, milliDiv, milliDel, milliIns,
+#   genoName, genoStart, genoEnd, genoLeft, strand,
+#   repName, repClass, repFamily, repStart, repEnd, repLeft, id
+# genoStart is already 0-based half-open (UCSC BED convention).
+
+def _rmsk_iter(src: Path):
+    with open(src) as f:
+        for line in f:
+            if not line.strip() or line.startswith("#"):
+                continue
+            c = line.rstrip("\n").split("\t")
+            if len(c) < 13:
+                continue
+            yield c
+
+
+def _rmsk_to_bed(src: Path, dst: Path) -> Path:
+    """Convert rmsk.txt to BED6: chrom, start, end, repName, swScore, strand."""
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    n = 0
+    with open(dst, "w") as out:
+        for c in _rmsk_iter(src):
+            chrom, start, end, strand = c[5], c[6], c[7], c[9]
+            name, score = c[10], c[1]
+            out.write(f"{chrom}\t{start}\t{end}\t{name}\t{score}\t{strand}\n")
+            n += 1
+    log.info("wrote %d rows -> %s", n, dst.name)
+    return dst
+
+
+def _rmsk_to_gtf(src: Path, dst: Path) -> Path:
+    """Convert rmsk.txt to GTF (one 'exon' feature per repeat)."""
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    n = 0
+    with open(dst, "w") as out:
+        for c in _rmsk_iter(src):
+            chrom = c[5]
+            start = int(c[6]) + 1   # BED 0-based -> GTF 1-based
+            end = c[7]
+            strand = c[9] if c[9] in ("+", "-") else "."
+            score = c[1]
+            name, rclass, rfamily = c[10], c[11], c[12]
+            attrs = (
+                f'gene_id "{name}"; transcript_id "{name}"; '
+                f'class "{rclass}"; family "{rfamily}";'
+            )
+            out.write(
+                f"{chrom}\trmsk\texon\t{start}\t{end}\t{score}\t{strand}\t.\t{attrs}\n"
+            )
+            n += 1
+    log.info("wrote %d rows -> %s", n, dst.name)
+    return dst
+
+
 # ── fasta builders ─────────────────────────────────────────────────────────────
 
 def build_genome(target: Target, *, force: bool = False) -> None:
@@ -106,14 +161,31 @@ def build_annotation_gff3(target: Target, *, force: bool = False) -> None:
 def build_repeats_gtf(target: Target, *, force: bool = False) -> None:
     src = raw_path(target, "repeats_gtf")
     if not src.exists():
-        return
+        # fall back to deriving from UCSC rmsk.txt.gz when available
+        rmsk = raw_path(target, "repeats_rmsk")
+        if rmsk.exists():
+            log.info("[%s/%s] deriving repeats GTF from rmsk",
+                     target.species, target.assembly)
+            src = target.raw_dir / "repeats_from_rmsk.gtf"
+            if not _exists(src) or force:
+                _rmsk_to_gtf(rmsk, src)
+        else:
+            return
     _build_sorted_gff(src, target.build_dir / "repeats.sorted.gtf.gz", force=force)
 
 
 def build_repeats_bed(target: Target, *, force: bool = False) -> None:
     src = raw_path(target, "repeats_bed")
     if not src.exists():
-        return
+        rmsk = raw_path(target, "repeats_rmsk")
+        if rmsk.exists():
+            log.info("[%s/%s] deriving repeats BED from rmsk",
+                     target.species, target.assembly)
+            src = target.raw_dir / "repeats_from_rmsk.bed"
+            if not _exists(src) or force:
+                _rmsk_to_bed(rmsk, src)
+        else:
+            return
     _build_sorted_bed(src, target.build_dir / "repeats.sorted.bed.gz", force=force)
 
 

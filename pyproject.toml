@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "refbox"
-version = "0.1.1"
+version = "0.1.2"
 description = "Build standardized, indexed reference files (genome, annotation, repeats, RNAcentral, cCRE) for genome browsers."
 readme = "README.md"
 license = { file = "LICENSE" }
