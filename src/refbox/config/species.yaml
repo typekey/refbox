@@ -1,0 +1,528 @@
+# Reference resource registry for rbrowser (refbox).
+#
+# Layout:  species -> assembly -> resource_name -> {local_path?, url?}
+#
+# Per-resource rules:
+#   - local_path exists -> copied to {Species}/{Assembly}/raw/
+#   - elif url is set   -> downloaded to {Species}/{Assembly}/raw/
+#   - elif null         -> skipped silently
+#
+# Canonical resource names (file extension shown):
+#   genome           .fa     primary chromosome FASTA
+#   transcriptome    .fa     transcript FASTA
+#   annotation_gtf   .gtf    gene model GTF
+#   annotation_gff3  .gff3   gene model GFF3
+#   repeats_rmsk     .tsv    UCSC rmsk.txt.gz raw table (canonical source)
+#   repeats_bed      .bed    derived BED (NULL url -> built from repeats_rmsk)
+#   repeats_gtf      .gtf    derived GTF (NULL url -> built from repeats_rmsk)
+#   repeats_fa       .fa     UCSC RepeatMasker .fa.out.gz (alignment-style)
+#   rnacentral       .gff3   RNAcentral genome_coordinates GFF3
+#   ccre             .bed    ENCODE SCREEN cCREs
+#
+# Common URL templates:
+#   GENCODE human     https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_{V}/...
+#   GENCODE mouse     https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_{V}/...
+#   Ensembl           https://ftp.ensembl.org/pub/release-{V}/{type}/{species}/...
+#   Ensembl Plants    https://ftp.ensemblgenomes.org/pub/plants/release-{V}/...
+#   Ensembl Metazoa   https://ftp.ensemblgenomes.org/pub/metazoa/release-{V}/...
+#   Ensembl Fungi     https://ftp.ensemblgenomes.org/pub/fungi/release-{V}/...
+#   Ensembl Bacteria  https://ftp.ensemblgenomes.org/pub/bacteria/release-{V}/...
+#   UCSC bigZips      https://hgdownload.soe.ucsc.edu/goldenPath/{db}/bigZips/{db}.fa.gz
+#                     https://hgdownload.soe.ucsc.edu/goldenPath/{db}/bigZips/{db}.fa.out.gz
+#                     https://hgdownload.soe.ucsc.edu/goldenPath/{db}/database/rmsk.txt.gz
+#   RNAcentral GFF3   https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/{species_lower}.{Assembly}.gff3.gz
+
+species:
+
+  # ── Human ────────────────────────────────────────────────────────────────────
+  Homo_sapiens:
+    GRCh38:                                 # UCSC: hg38
+      enabled: true
+      gencode_version: 44
+      ucsc_db: hg38
+      genome:
+        url: https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_44/GRCh38.primary_assembly.genome.fa.gz
+      transcriptome:
+        url: https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_44/gencode.v44.transcripts.fa.gz
+      annotation_gtf:
+        url: https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_44/gencode.v44.annotation.gtf.gz
+      annotation_gff3:
+        url: https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_44/gencode.v44.annotation.gff3.gz
+      repeats_rmsk:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/hg38/database/rmsk.txt.gz
+      repeats_bed: null      # derived from repeats_rmsk by build step
+      repeats_gtf: null      # derived from repeats_rmsk by build step
+      repeats_fa:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.out.gz
+      rnacentral:
+        url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/homo_sapiens.GRCh38.gff3.gz
+      ccre:
+        url: https://downloads.wenglab.org/V3/GRCh38-cCREs.bed
+
+    GRCh37:                                 # UCSC: hg19
+      enabled: false
+      gencode_version: 44
+      ucsc_db: hg19
+      genome:
+        url: https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_44/GRCh37_mapping/GRCh37.primary_assembly.genome.fa.gz
+      transcriptome:
+        url: https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_44/GRCh37_mapping/gencode.v44lift37.transcripts.fa.gz
+      annotation_gtf:
+        url: https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_44/GRCh37_mapping/gencode.v44lift37.annotation.gtf.gz
+      annotation_gff3:
+        url: https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_44/GRCh37_mapping/gencode.v44lift37.annotation.gff3.gz
+      repeats_rmsk:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/rmsk.txt.gz
+      repeats_bed: null
+      repeats_gtf: null
+      repeats_fa:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/hg19/bigZips/hg19.fa.out.gz
+      rnacentral: null
+      ccre: null
+
+    hg18:
+      enabled: false
+      ucsc_db: hg18
+      genome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/hg18/bigZips/hg18.fa.gz
+      repeats_rmsk:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/hg18/database/rmsk.txt.gz
+      repeats_fa:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/hg18/bigZips/hg18.fa.out.gz
+
+    T2T-CHM13v2:                            # UCSC: hs1
+      enabled: false
+      ucsc_db: hs1
+      genome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/hs1/bigZips/hs1.fa.gz
+      transcriptome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/hs1/bigZips/genes/catLiftOffGenesV1.fa.gz
+      annotation_gtf:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/hs1/bigZips/genes/catLiftOffGenesV1.gtf.gz
+      repeats_rmsk:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/hs1/database/rmsk.txt.gz
+      repeats_fa:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/hs1/bigZips/hs1.fa.out.gz
+
+  # ── Mouse ────────────────────────────────────────────────────────────────────
+  Mus_musculus:
+    GRCm38:                                 # UCSC: mm10
+      enabled: true
+      gencode_version: M23
+      ucsc_db: mm10
+      genome:
+        url: https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M23/GRCm38.primary_assembly.genome.fa.gz
+      transcriptome:
+        url: https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M23/gencode.vM23.transcripts.fa.gz
+      annotation_gtf:
+        url: https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M23/gencode.vM23.annotation.gtf.gz
+      annotation_gff3:
+        url: https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M23/gencode.vM23.annotation.gff3.gz
+      repeats_rmsk:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/mm10/database/rmsk.txt.gz
+      repeats_bed: null
+      repeats_gtf: null
+      repeats_fa:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/mm10/bigZips/mm10.fa.out.gz
+      rnacentral: null   # RNAcentral current release only has GRCm39
+      ccre:
+        url: https://downloads.wenglab.org/V3/mm10-cCREs.bed
+
+    GRCm39:                                 # UCSC: mm39
+      enabled: false
+      gencode_version: M34
+      ucsc_db: mm39
+      genome:
+        url: https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M34/GRCm39.primary_assembly.genome.fa.gz
+      transcriptome:
+        url: https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M34/gencode.vM34.transcripts.fa.gz
+      annotation_gtf:
+        url: https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M34/gencode.vM34.annotation.gtf.gz
+      annotation_gff3:
+        url: https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M34/gencode.vM34.annotation.gff3.gz
+      repeats_rmsk:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/mm39/database/rmsk.txt.gz
+      repeats_bed: null
+      repeats_gtf: null
+      repeats_fa:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/mm39/bigZips/mm39.fa.out.gz
+      rnacentral:
+        url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/mus_musculus.GRCm39.gff3.gz
+      ccre: null
+
+    mm9:
+      enabled: false
+      ucsc_db: mm9
+      genome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/mm9/bigZips/mm9.fa.gz
+      repeats_rmsk:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/mm9/database/rmsk.txt.gz
+      repeats_fa:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/mm9/bigZips/mm9.fa.out.gz
+
+  # ── Other vertebrates ────────────────────────────────────────────────────────
+  Pan_troglodytes:                          # Chimp
+    panTro4:
+      enabled: false
+      ucsc_db: panTro4
+      genome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/panTro4/bigZips/panTro4.fa.gz
+      repeats_rmsk:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/panTro4/database/rmsk.txt.gz
+      repeats_fa:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/panTro4/bigZips/panTro4.fa.out.gz
+
+  Pan_paniscus:                             # Bonobo
+    panPan2:
+      enabled: false
+      ucsc_db: panPan2
+      genome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/panPan2/bigZips/panPan2.fa.gz
+      repeats_rmsk:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/panPan2/database/rmsk.txt.gz
+      repeats_fa:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/panPan2/bigZips/panPan2.fa.out.gz
+
+  Gorilla_gorilla:
+    gorGor4:
+      enabled: false
+      ucsc_db: gorGor4
+      genome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/gorGor4/bigZips/gorGor4.fa.gz
+      repeats_rmsk:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/gorGor4/database/rmsk.txt.gz
+      repeats_fa:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/gorGor4/bigZips/gorGor4.fa.out.gz
+    gorGor6:
+      enabled: false
+      ucsc_db: gorGor6
+      genome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/gorGor6/bigZips/gorGor6.fa.gz
+      repeats_rmsk:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/gorGor6/database/rmsk.txt.gz
+      repeats_fa:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/gorGor6/bigZips/gorGor6.fa.out.gz
+
+  Macaca_fascicularis:
+    GCA_011100615.1:
+      enabled: false
+      ncbi_accession: GCA_011100615.1
+      genome:
+        url: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/011/100/615/GCA_011100615.1_Macaca_fascicularis_6.0/GCA_011100615.1_Macaca_fascicularis_6.0_genomic.fna.gz
+      annotation_gff3:
+        url: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/011/100/615/GCA_011100615.1_Macaca_fascicularis_6.0/GCA_011100615.1_Macaca_fascicularis_6.0_genomic.gff.gz
+
+  Bos_taurus:                               # Cow
+    bosTau8:
+      enabled: false
+      ucsc_db: bosTau8
+      genome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/bosTau8/bigZips/bosTau8.fa.gz
+      repeats_rmsk:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/bosTau8/database/rmsk.txt.gz
+      repeats_fa:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/bosTau8/bigZips/bosTau8.fa.out.gz
+    bosTau9:
+      enabled: false
+      ucsc_db: bosTau9
+      genome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/bosTau9/bigZips/bosTau9.fa.gz
+      repeats_rmsk:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/bosTau9/database/rmsk.txt.gz
+      repeats_fa:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/bosTau9/bigZips/bosTau9.fa.out.gz
+
+  Sus_scrofa:                               # Pig
+    susScr11:
+      enabled: false
+      ucsc_db: susScr11
+      genome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/susScr11/bigZips/susScr11.fa.gz
+      repeats_rmsk:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/susScr11/database/rmsk.txt.gz
+      repeats_fa:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/susScr11/bigZips/susScr11.fa.out.gz
+
+  Canis_familiaris:                         # Dog
+    canFam3:
+      enabled: false
+      ucsc_db: canFam3
+      genome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/canFam3/bigZips/canFam3.fa.gz
+      repeats_rmsk:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/canFam3/database/rmsk.txt.gz
+      repeats_fa:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/canFam3/bigZips/canFam3.fa.out.gz
+    canFam4:                                # UU_Cfam_GSD_1.0
+      enabled: false
+      ucsc_db: canFam4
+      genome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/canFam4/bigZips/canFam4.fa.gz
+      repeats_rmsk:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/canFam4/database/rmsk.txt.gz
+      repeats_fa:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/canFam4/bigZips/canFam4.fa.out.gz
+    canFam5:
+      enabled: false
+      ucsc_db: canFam5
+      genome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/canFam5/bigZips/canFam5.fa.gz
+      repeats_rmsk:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/canFam5/database/rmsk.txt.gz
+      repeats_fa:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/canFam5/bigZips/canFam5.fa.out.gz
+
+  Rattus_norvegicus:                        # Rat
+    rn6:
+      enabled: false
+      ucsc_db: rn6
+      genome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/rn6/bigZips/rn6.fa.gz
+      repeats_rmsk:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/rn6/database/rmsk.txt.gz
+      repeats_fa:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/rn6/bigZips/rn6.fa.out.gz
+    rn7:
+      enabled: false
+      ucsc_db: rn7
+      genome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/rn7/bigZips/rn7.fa.gz
+      repeats_rmsk:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/rn7/database/rmsk.txt.gz
+      repeats_fa:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/rn7/bigZips/rn7.fa.out.gz
+
+  Gallus_gallus:                            # Chicken
+    galGal6:                                # GRCg6a
+      enabled: false
+      ucsc_db: galGal6
+      genome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/galGal6/bigZips/galGal6.fa.gz
+      repeats_rmsk:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/galGal6/database/rmsk.txt.gz
+      repeats_fa:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/galGal6/bigZips/galGal6.fa.out.gz
+    GCF_016699485.2:
+      enabled: false
+      ncbi_accession: GCF_016699485.2
+      genome:
+        url: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/016/699/485/GCF_016699485.2_bGalGal1.mat.broiler.GRCg7b/GCF_016699485.2_bGalGal1.mat.broiler.GRCg7b_genomic.fna.gz
+      annotation_gff3:
+        url: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/016/699/485/GCF_016699485.2_bGalGal1.mat.broiler.GRCg7b/GCF_016699485.2_bGalGal1.mat.broiler.GRCg7b_genomic.gff.gz
+
+  # ── Fish ─────────────────────────────────────────────────────────────────────
+  Danio_rerio:                              # Zebrafish
+    GRCz11:                                 # UCSC: danRer11
+      enabled: false
+      ensembl_release: 111
+      ucsc_db: danRer11
+      genome:
+        url: https://ftp.ensembl.org/pub/release-111/fasta/danio_rerio/dna/Danio_rerio.GRCz11.dna.primary_assembly.fa.gz
+      transcriptome:
+        url: https://ftp.ensembl.org/pub/release-111/fasta/danio_rerio/cdna/Danio_rerio.GRCz11.cdna.all.fa.gz
+      annotation_gtf:
+        url: https://ftp.ensembl.org/pub/release-111/gtf/danio_rerio/Danio_rerio.GRCz11.111.gtf.gz
+      annotation_gff3:
+        url: https://ftp.ensembl.org/pub/release-111/gff3/danio_rerio/Danio_rerio.GRCz11.111.gff3.gz
+      repeats_rmsk:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/danRer11/database/rmsk.txt.gz
+      repeats_fa:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/danRer11/bigZips/danRer11.fa.out.gz
+      rnacentral:
+        url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/danio_rerio.GRCz11.gff3.gz
+    GRCz10:                                 # UCSC: danRer10
+      enabled: false
+      ucsc_db: danRer10
+      genome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/danRer10/bigZips/danRer10.fa.gz
+      repeats_rmsk:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/danRer10/database/rmsk.txt.gz
+      repeats_fa:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/danRer10/bigZips/danRer10.fa.out.gz
+
+  # ── Insects / invertebrates ──────────────────────────────────────────────────
+  Drosophila_melanogaster:
+    BDGP6.46:                               # Ensembl latest
+      enabled: false
+      ensembl_release: 111
+      ucsc_db: dm6
+      genome:
+        url: https://ftp.ensembl.org/pub/release-111/fasta/drosophila_melanogaster/dna/Drosophila_melanogaster.BDGP6.46.dna.toplevel.fa.gz
+      transcriptome:
+        url: https://ftp.ensembl.org/pub/release-111/fasta/drosophila_melanogaster/cdna/Drosophila_melanogaster.BDGP6.46.cdna.all.fa.gz
+      annotation_gtf:
+        url: https://ftp.ensembl.org/pub/release-111/gtf/drosophila_melanogaster/Drosophila_melanogaster.BDGP6.46.111.gtf.gz
+      annotation_gff3:
+        url: https://ftp.ensembl.org/pub/release-111/gff3/drosophila_melanogaster/Drosophila_melanogaster.BDGP6.46.111.gff3.gz
+      repeats_rmsk:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/dm6/database/rmsk.txt.gz
+      repeats_fa:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/dm6/bigZips/dm6.fa.out.gz
+      rnacentral:
+        url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/drosophila_melanogaster.BDGP6.46.gff3.gz
+    dm6:                                    # UCSC dm6 (BDGP6.32)
+      enabled: false
+      ucsc_db: dm6
+      genome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/dm6/bigZips/dm6.fa.gz
+      repeats_rmsk:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/dm6/database/rmsk.txt.gz
+      repeats_fa:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/dm6/bigZips/dm6.fa.out.gz
+    dm3:
+      enabled: false
+      ucsc_db: dm3
+      genome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/dm3/bigZips/dm3.fa.gz
+      repeats_rmsk:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/dm3/database/rmsk.txt.gz
+      repeats_fa:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/dm3/bigZips/dm3.fa.out.gz
+    r5.9:
+      enabled: false
+      genome:
+        url: https://ftp.flybase.net/genomes/Drosophila_melanogaster/dmel_r5.9_FB2008_06/fasta/dmel-all-chromosome-r5.9.fasta.gz
+      annotation_gff3:
+        url: https://ftp.flybase.net/genomes/Drosophila_melanogaster/dmel_r5.9_FB2008_06/gff/dmel-all-r5.9.gff.gz
+
+  Caenorhabditis_elegans:                   # C. elegans
+    ce11:
+      enabled: false
+      ucsc_db: ce11
+      genome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/ce11/bigZips/ce11.fa.gz
+      transcriptome:
+        url: https://ftp.ensembl.org/pub/release-111/fasta/caenorhabditis_elegans/cdna/Caenorhabditis_elegans.WBcel235.cdna.all.fa.gz
+      annotation_gtf:
+        url: https://ftp.ensembl.org/pub/release-111/gtf/caenorhabditis_elegans/Caenorhabditis_elegans.WBcel235.111.gtf.gz
+      annotation_gff3:
+        url: https://ftp.ensembl.org/pub/release-111/gff3/caenorhabditis_elegans/Caenorhabditis_elegans.WBcel235.111.gff3.gz
+      repeats_rmsk:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/ce11/database/rmsk.txt.gz
+      repeats_fa:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/ce11/bigZips/ce11.fa.out.gz
+      rnacentral:
+        url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/caenorhabditis_elegans.WBcel235.gff3.gz
+
+  # ── Echinoderms ──────────────────────────────────────────────────────────────
+  Lytechinus_variegatus:
+    Lvar3.0:
+      enabled: false
+      genome:
+        url: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/018/143/015/GCF_018143015.1_Lvar_3.0/GCF_018143015.1_Lvar_3.0_genomic.fna.gz
+      annotation_gff3:
+        url: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/018/143/015/GCF_018143015.1_Lvar_3.0/GCF_018143015.1_Lvar_3.0_genomic.gff.gz
+
+  Patiria_miniata:
+    Pmin3.0:
+      enabled: false
+      # FASTA hosted on the Echinobase mirror; replace if a stable URL is preferred.
+      genome:
+        url: https://download.echinobase.org/echinobase/Genomics/Pmin3.0/Pmin_3.0.fasta.gz
+
+  Strongylocentrotus_purpuratus:
+    Spur5.0:
+      enabled: false
+      genome:
+        url: https://download.echinobase.org/echinobase/Genomics/Spur5.0/Spur_5.0.fasta.gz
+      annotation_gff3:
+        url: https://download.echinobase.org/echinobase/Genomics/Spur5.0/Spur_5.0.gff3.gz
+    strPur2:                                # Baylor 2.1
+      enabled: false
+      ucsc_db: strPur2
+      genome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/strPur2/bigZips/strPur2.fa.gz
+
+  # ── Plants ───────────────────────────────────────────────────────────────────
+  Arabidopsis_thaliana:
+    TAIR10:
+      enabled: false
+      ensembl_release: 58
+      genome:
+        url: https://ftp.ensemblgenomes.org/pub/plants/release-58/fasta/arabidopsis_thaliana/dna/Arabidopsis_thaliana.TAIR10.dna.toplevel.fa.gz
+      transcriptome:
+        url: https://ftp.ensemblgenomes.org/pub/plants/release-58/fasta/arabidopsis_thaliana/cdna/Arabidopsis_thaliana.TAIR10.cdna.all.fa.gz
+      annotation_gtf:
+        url: https://ftp.ensemblgenomes.org/pub/plants/release-58/gtf/arabidopsis_thaliana/Arabidopsis_thaliana.TAIR10.58.gtf.gz
+      annotation_gff3:
+        url: https://ftp.ensemblgenomes.org/pub/plants/release-58/gff3/arabidopsis_thaliana/Arabidopsis_thaliana.TAIR10.58.gff3.gz
+      # No UCSC golden-path mirror; repeats from Ensembl-soft-masked genome only.
+      repeats_rmsk: null
+      repeats_fa: null
+      rnacentral:
+        url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/arabidopsis_thaliana.TAIR10.gff3.gz
+
+  Oryza_sativa:
+    IRGSP-1.0:
+      enabled: false
+      ncbi_accession: GCF_001433935.1
+      genome:
+        url: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/001/433/935/GCF_001433935.1_IRGSP-1.0/GCF_001433935.1_IRGSP-1.0_genomic.fna.gz
+      annotation_gff3:
+        url: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/001/433/935/GCF_001433935.1_IRGSP-1.0/GCF_001433935.1_IRGSP-1.0_genomic.gff.gz
+
+  # ── Fungi ────────────────────────────────────────────────────────────────────
+  Saccharomyces_cerevisiae:
+    sacCer3:
+      enabled: false
+      ucsc_db: sacCer3
+      genome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/sacCer3/bigZips/sacCer3.fa.gz
+      transcriptome:
+        url: https://ftp.ensemblgenomes.org/pub/fungi/release-58/fasta/saccharomyces_cerevisiae/cdna/Saccharomyces_cerevisiae.R64-1-1.cdna.all.fa.gz
+      annotation_gtf:
+        url: https://ftp.ensemblgenomes.org/pub/fungi/release-58/gtf/saccharomyces_cerevisiae/Saccharomyces_cerevisiae.R64-1-1.58.gtf.gz
+      repeats_rmsk:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/sacCer3/database/rmsk.txt.gz
+      repeats_fa:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/sacCer3/bigZips/sacCer3.fa.out.gz
+
+  Schizosaccharomyces_pombe:
+    ASM294v2:
+      enabled: false
+      genome:
+        url: https://ftp.ensemblgenomes.org/pub/fungi/release-58/fasta/schizosaccharomyces_pombe/dna/Schizosaccharomyces_pombe.ASM294v2.dna.toplevel.fa.gz
+      transcriptome:
+        url: https://ftp.ensemblgenomes.org/pub/fungi/release-58/fasta/schizosaccharomyces_pombe/cdna/Schizosaccharomyces_pombe.ASM294v2.cdna.all.fa.gz
+      annotation_gtf:
+        url: https://ftp.ensemblgenomes.org/pub/fungi/release-58/gtf/schizosaccharomyces_pombe/Schizosaccharomyces_pombe.ASM294v2.58.gtf.gz
+
+  Coprinopsis_cinerea:
+    GCA_000182895.1:
+      enabled: false
+      ncbi_accession: GCA_000182895.1
+      genome:
+        url: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/182/895/GCA_000182895.1_CC3/GCA_000182895.1_CC3_genomic.fna.gz
+
+  # ── Bacteria / viruses / organelles ──────────────────────────────────────────
+  Escherichia_coli_K12:
+    NC_000913.3:
+      enabled: false
+      ncbi_accession: NC_000913.3
+      genome:
+        url: https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=NC_000913.3&rettype=fasta&retmode=text
+      annotation_gff3:
+        url: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/005/845/GCF_000005845.2_ASM584v2/GCF_000005845.2_ASM584v2_genomic.gff.gz
+
+  Francisella_tularensis:
+    NC_008601:
+      enabled: false
+      ncbi_accession: NC_008601
+      genome:
+        url: https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=NC_008601&rettype=fasta&retmode=text
+
+  SARS_CoV_2:
+    NC_045512.2:
+      enabled: false
+      ncbi_accession: NC_045512.2
+      genome:
+        url: https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=NC_045512.2&rettype=fasta&retmode=text
+      annotation_gff3:
+        url: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/009/858/895/GCF_009858895.2_ASM985889v3/GCF_009858895.2_ASM985889v3_genomic.gff.gz
+
+  Human_mitochondria:
+    NC_012920:
+      enabled: false
+      ncbi_accession: NC_012920.1
+      genome:
+        url: https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=NC_012920.1&rettype=fasta&retmode=text

@@ -1,0 +1,55 @@
+# Build artifacts
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+htmlcov/
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Reference data outputs (never commit reference genomes)
+/Homo_sapiens/
+/Mus_musculus/
+/Danio_rerio/
+/Drosophila_melanogaster/
+/Arabidopsis_thaliana/
+/Pan_troglodytes/
+/Pan_paniscus/
+/Gorilla_gorilla/
+/Macaca_fascicularis/
+/Bos_taurus/
+/Sus_scrofa/
+/Canis_familiaris/
+/Rattus_norvegicus/
+/Gallus_gallus/
+/Lytechinus_variegatus/
+/Patiria_miniata/
+/Strongylocentrotus_purpuratus/
+/Oryza_sativa/
+/Caenorhabditis_elegans/
+/Saccharomyces_cerevisiae/
+/Schizosaccharomyces_pombe/
+/Coprinopsis_cinerea/
+/Escherichia_coli_K12/
+/Francisella_tularensis/
+/SARS_CoV_2/
+/Human_mitochondria/
