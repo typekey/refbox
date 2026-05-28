@@ -31,12 +31,16 @@ def bgzip_file(src: Path, dst: Path, *, force: bool = False, threads: int = 4) -
     dst.parent.mkdir(parents=True, exist_ok=True)
     if dst.exists() and not force:
         return dst
-    # bgzip -c writes to stdout
-    with open(dst, "wb") as f:
+    # write to a .tmp first so an interrupted run never leaves a half-written .gz
+    tmp = dst.with_suffix(dst.suffix + ".tmp")
+    if tmp.exists():
+        tmp.unlink()
+    with open(tmp, "wb") as f:
         subprocess.run(
             ["bgzip", "-c", "-@", str(threads), str(src)],
             check=True, stdout=f,
         )
+    tmp.replace(dst)
     return dst
 
 
