@@ -18,6 +18,8 @@ Final output names (per assembly build/):
 from __future__ import annotations
 
 import logging
+import shutil
+import subprocess
 from pathlib import Path
 
 from .config import RESOURCE_NAMES, Target, iter_targets, raw_path
@@ -189,6 +191,47 @@ def build_repeats_bed(target: Target, *, force: bool = False) -> None:
     _build_sorted_bed(src, target.build_dir / "repeats.sorted.bed.gz", force=force)
 
 
+def _ensembl_to_ucsc_chrom(name: str) -> str:
+    """Map a single Ensembl-style chrom to UCSC convention (chr1, chrX, chrM)."""
+    if name.startswith("chr"):
+        return name
+    if name == "MT":
+        return "chrM"
+    return f"chr{name}"
+
+
+def _normalize_gff3_to_ucsc(src: Path, dst: Path) -> int:
+    """Rewrite a GFF3 file so chromosome names follow the UCSC ``chr*`` convention.
+
+    Used as a pre-step before running UCSC ``liftOver`` (chain files use chr*).
+    Comments are preserved; all data lines are rewritten. Returns row count.
+    """
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    n = 0
+    with open(src) as fin, open(dst, "w") as fout:
+        for line in fin:
+            if not line.strip() or line.startswith("#"):
+                fout.write(line)
+                continue
+            chrom, _, rest = line.partition("\t")
+            fout.write(f"{_ensembl_to_ucsc_chrom(chrom)}\t{rest}")
+            n += 1
+    return n
+
+
+def _liftover_gff(src: Path, chain: Path, dst: Path, unmapped: Path) -> None:
+    """Run UCSC liftOver in -gff mode. Requires the ``liftOver`` binary on PATH."""
+    if not shutil.which("liftOver"):
+        raise RuntimeError(
+            "liftOver binary not found on PATH; install UCSC tools or skip "
+            "the liftover_from feature."
+        )
+    cmd = ["liftOver", "-gff", str(src), str(chain), str(dst), str(unmapped)]
+    log.info("$ %s", " ".join(cmd))
+    # liftOver writes progress + summary to stderr; let it stream.
+    subprocess.run(cmd, check=True)
+
+
 def _load_genome_chroms(target: Target) -> set[str]:
     """Return chromosome names present in the built genome.fa.gz.fai (or empty)."""
     fai = target.build_dir / "genome.fa.gz.fai"
@@ -245,8 +288,12 @@ def _normalize_rnacentral_chroms(src: Path, dst: Path, genome_chroms: set[str]) 
 
 def build_rnacentral(target: Target, *, force: bool = False) -> None:
     src = raw_path(target, "rnacentral")
+    # If the canonical raw file is missing, attempt to derive it from a
+    # source-assembly file via liftOver (configured by `rnacentral.liftover_from`).
     if not src.exists():
-        return
+        src = _materialize_rnacentral_via_liftover(target, force=force)
+        if src is None or not src.exists():
+            return
     # raw filename is rnacentral.gff3; some sources actually ship gtf-like.
     # We treat extension generically with tabix -p gff.
     out_gz = target.build_dir / "rnacentral.sorted.gff3.gz"
@@ -261,6 +308,54 @@ def build_rnacentral(target: Target, *, force: bool = False) -> None:
                  target.species, target.assembly, n)
         src = normalized
     _build_sorted_gff(src, out_gz, force=force)
+
+
+def _materialize_rnacentral_via_liftover(
+    target: Target, *, force: bool = False
+) -> Path | None:
+    """Lift over rnacentral coords from a source assembly into target coords.
+
+    Inputs (created by download step when `liftover_from` is configured):
+      raw/rnacentral.source.gff3   -- GFF3 in the source assembly's coordinates
+      raw/rnacentral.chain         -- UCSC liftOver chain (source -> target)
+
+    Output:
+      raw/rnacentral.gff3          -- GFF3 in this target's coordinates
+      raw/rnacentral.unmapped.gff3 -- features that failed to lift (for inspection)
+    """
+    source_gff = target.raw_dir / "rnacentral.source.gff3"
+    chain = target.raw_dir / "rnacentral.chain"
+    if not (source_gff.exists() and chain.exists()):
+        return None
+
+    out = target.raw_dir / "rnacentral.gff3"
+    unmapped = target.raw_dir / "rnacentral.unmapped.gff3"
+    if out.exists() and not force:
+        log.info("[%s/%s] rnacentral lifted file already exists: %s",
+                 target.species, target.assembly, out)
+        return out
+
+    # Step 1: ensure chrom names in source match the chain (UCSC chr*).
+    chrnorm = target.raw_dir / "rnacentral.source.chrnorm.gff3"
+    n = _normalize_gff3_to_ucsc(source_gff, chrnorm)
+    log.info("[%s/%s] rnacentral source -> UCSC chrom names: %d rows",
+             target.species, target.assembly, n)
+
+    # Step 2: liftOver in GFF mode.
+    log.info("[%s/%s] lifting rnacentral via %s",
+             target.species, target.assembly, chain.name)
+    _liftover_gff(chrnorm, chain, out, unmapped)
+
+    # Report mapping stats.
+    try:
+        kept = sum(1 for ln in open(out) if ln and not ln.startswith("#") and ln.strip())
+        dropped = sum(1 for ln in open(unmapped) if ln and not ln.startswith("#") and ln.strip())
+        log.info("[%s/%s] liftOver result: %d mapped, %d unmapped",
+                 target.species, target.assembly, kept, dropped)
+    except OSError:
+        pass
+    chrnorm.unlink(missing_ok=True)
+    return out
 
 
 def build_ccre(target: Target, *, force: bool = False) -> None:

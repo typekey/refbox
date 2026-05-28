@@ -132,6 +132,14 @@ def fetch_resource(target: Target, resource: str, *, force: bool = False) -> Pat
     if spec is None:
         log.info("[%s/%s] skip %s (null)", target.species, target.assembly, resource)
         return None
+
+    # Special path: resource is to be derived by lifting over coordinates from
+    # another assembly's upstream file. We fetch the source GFF + chain instead
+    # of the canonical raw file; build_<resource>() runs liftOver later.
+    lift = spec.get("liftover_from") if isinstance(spec, dict) else None
+    if lift:
+        return _fetch_liftover_inputs(target, resource, lift, force=force)
+
     dst = raw_path(target, resource)
     if dst.exists() and not force:
         log.info("[%s/%s] %s already exists: %s",
@@ -149,6 +157,45 @@ def fetch_resource(target: Target, resource: str, *, force: bool = False) -> Pat
     log.warning("[%s/%s] %s has neither readable local_path nor url",
                 target.species, target.assembly, resource)
     return None
+
+
+def _fetch_liftover_inputs(
+    target: Target,
+    resource: str,
+    lift: dict,
+    *,
+    force: bool = False,
+) -> Path | None:
+    """Download the source-assembly file and chain file for a lifted resource.
+
+    Files are written to:
+      raw/<resource>.source.<ext>   (e.g. rnacentral.source.gff3)
+      raw/<resource>.chain          (UCSC liftOver chain, decompressed)
+    """
+    from .config import RESOURCE_EXT  # local import to avoid cycle in tests
+    ext = RESOURCE_EXT[resource]
+    src_dst = target.raw_dir / f"{resource}.source.{ext}"
+    chain_dst = target.raw_dir / f"{resource}.chain"
+
+    url = lift.get("url")
+    chain_url = lift.get("chain_url")
+    if not url or not chain_url:
+        log.warning("[%s/%s] %s liftover_from requires both url and chain_url",
+                    target.species, target.assembly, resource)
+        return None
+
+    if not src_dst.exists() or force:
+        _download(url, src_dst)
+    else:
+        log.info("[%s/%s] %s source already exists: %s",
+                 target.species, target.assembly, resource, src_dst)
+
+    if not chain_dst.exists() or force:
+        _download(chain_url, chain_dst)
+    else:
+        log.info("[%s/%s] %s chain already exists: %s",
+                 target.species, target.assembly, resource, chain_dst)
+    return src_dst
 
 
 def download_targets(

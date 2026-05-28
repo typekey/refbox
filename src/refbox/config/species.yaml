@@ -124,7 +124,13 @@ species:
       repeats_gtf: null
       repeats_fa:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/mm10/bigZips/mm10.fa.out.gz
-      rnacentral: null   # RNAcentral current release only has GRCm39
+      rnacentral:
+        # RNAcentral current release does not publish mouse GRCm38 coordinates;
+        # download the GRCm39 GFF3 and lift over to GRCm38 (mm10) via the UCSC chain.
+        liftover_from:
+          source_assembly: GRCm39
+          url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/mus_musculus.GRCm39.gff3.gz
+          chain_url: https://hgdownload.soe.ucsc.edu/goldenPath/mm39/liftOver/mm39ToMm10.over.chain.gz
       ccre:
         url: https://downloads.wenglab.org/V3/mm10-cCREs.bed
 
