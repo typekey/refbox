@@ -189,13 +189,78 @@ def build_repeats_bed(target: Target, *, force: bool = False) -> None:
     _build_sorted_bed(src, target.build_dir / "repeats.sorted.bed.gz", force=force)
 
 
+def _load_genome_chroms(target: Target) -> set[str]:
+    """Return chromosome names present in the built genome.fa.gz.fai (or empty)."""
+    fai = target.build_dir / "genome.fa.gz.fai"
+    if not fai.exists():
+        return set()
+    chroms: set[str] = set()
+    with open(fai) as fh:
+        for line in fh:
+            name = line.split("\t", 1)[0].strip()
+            if name:
+                chroms.add(name)
+    return chroms
+
+
+def _normalize_rnacentral_chroms(src: Path, dst: Path, genome_chroms: set[str]) -> int:
+    """Rewrite rnacentral GFF3 so chromosome names match the target genome.
+
+    RNAcentral uses Ensembl-style names (``1``, ``X``, ``MT``) while UCSC
+    genomes use ``chr1``/``chrX``/``chrM``. Records whose chromosome cannot be
+    mapped to a name present in the genome are dropped.
+
+    Returns the number of records written (excluding comments/empty lines).
+    """
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    use_chr_prefix = any(c.startswith("chr") for c in genome_chroms)
+    kept = 0
+    dropped: dict[str, int] = {}
+    with open(src) as fin, open(dst, "w") as fout:
+        for line in fin:
+            if not line.strip() or line.startswith("#"):
+                fout.write(line)
+                continue
+            chrom, _, rest = line.partition("\t")
+            mapped = chrom
+            if mapped not in genome_chroms and use_chr_prefix:
+                # MT -> chrM, otherwise prepend "chr"
+                candidate = "chrM" if chrom == "MT" else f"chr{chrom}"
+                if candidate in genome_chroms:
+                    mapped = candidate
+            if mapped not in genome_chroms:
+                dropped[chrom] = dropped.get(chrom, 0) + 1
+                continue
+            fout.write(f"{mapped}\t{rest}")
+            kept += 1
+    if dropped:
+        top = sorted(dropped.items(), key=lambda kv: -kv[1])[:5]
+        log.warning(
+            "rnacentral: dropped %d records on unmapped chromosomes (top: %s)",
+            sum(dropped.values()),
+            ", ".join(f"{c}={n}" for c, n in top),
+        )
+    return kept
+
+
 def build_rnacentral(target: Target, *, force: bool = False) -> None:
     src = raw_path(target, "rnacentral")
     if not src.exists():
         return
     # raw filename is rnacentral.gff3; some sources actually ship gtf-like.
     # We treat extension generically with tabix -p gff.
-    _build_sorted_gff(src, target.build_dir / "rnacentral.sorted.gff3.gz", force=force)
+    out_gz = target.build_dir / "rnacentral.sorted.gff3.gz"
+    if _exists(out_gz) and _exists(Path(f"{out_gz}.tbi")) and not force:
+        return
+    # Normalize chromosome names to match the built genome.
+    genome_chroms = _load_genome_chroms(target)
+    if genome_chroms:
+        normalized = target.raw_dir / "rnacentral.normalized.gff3"
+        n = _normalize_rnacentral_chroms(src, normalized, genome_chroms)
+        log.info("[%s/%s] rnacentral: %d records after chrom normalization",
+                 target.species, target.assembly, n)
+        src = normalized
+    _build_sorted_gff(src, out_gz, force=force)
 
 
 def build_ccre(target: Target, *, force: bool = False) -> None:

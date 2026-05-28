@@ -129,7 +129,7 @@ species:
         url: https://downloads.wenglab.org/V3/mm10-cCREs.bed
 
     GRCm39:                                 # UCSC: mm39
-      enabled: false
+      enabled: true
       gencode_version: M34
       ucsc_db: mm39
       genome:
@@ -193,6 +193,8 @@ species:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/gorGor4/database/rmsk.txt.gz
       repeats_fa:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/gorGor4/bigZips/gorGor4.fa.out.gz
+      rnacentral:
+        url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/gorilla_gorilla.gorGor4.gff3.gz
     gorGor6:
       enabled: false
       ucsc_db: gorGor6
@@ -211,6 +213,8 @@ species:
         url: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/011/100/615/GCA_011100615.1_Macaca_fascicularis_6.0/GCA_011100615.1_Macaca_fascicularis_6.0_genomic.fna.gz
       annotation_gff3:
         url: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/011/100/615/GCA_011100615.1_Macaca_fascicularis_6.0/GCA_011100615.1_Macaca_fascicularis_6.0_genomic.gff.gz
+      rnacentral:
+        url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/macaca_fascicularis.Macaca_fascicularis_6.0.gff3.gz
 
   Bos_taurus:                               # Cow
     bosTau8:
@@ -222,7 +226,7 @@ species:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/bosTau8/database/rmsk.txt.gz
       repeats_fa:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/bosTau8/bigZips/bosTau8.fa.out.gz
-    bosTau9:
+    bosTau9:                                # ARS-UCD1.2
       enabled: false
       ucsc_db: bosTau9
       genome:
@@ -231,9 +235,11 @@ species:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/bosTau9/database/rmsk.txt.gz
       repeats_fa:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/bosTau9/bigZips/bosTau9.fa.out.gz
+      rnacentral:
+        url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/bos_taurus.ARS-UCD1.2.gff3.gz
 
   Sus_scrofa:                               # Pig
-    susScr11:
+    susScr11:                               # Sscrofa11.1
       enabled: false
       ucsc_db: susScr11
       genome:
@@ -242,6 +248,8 @@ species:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/susScr11/database/rmsk.txt.gz
       repeats_fa:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/susScr11/bigZips/susScr11.fa.out.gz
+      rnacentral:
+        url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/sus_scrofa.Sscrofa11.1.gff3.gz
 
   Canis_familiaris:                         # Dog
     canFam3:
@@ -282,7 +290,7 @@ species:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/rn6/database/rmsk.txt.gz
       repeats_fa:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/rn6/bigZips/rn6.fa.out.gz
-    rn7:
+    rn7:                                    # mRatBN7.2
       enabled: false
       ucsc_db: rn7
       genome:
@@ -291,6 +299,8 @@ species:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/rn7/database/rmsk.txt.gz
       repeats_fa:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/rn7/bigZips/rn7.fa.out.gz
+      rnacentral:
+        url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/rattus_norvegicus.mRatBN7.2.gff3.gz
 
   Gallus_gallus:                            # Chicken
     galGal6:                                # GRCg6a
@@ -302,13 +312,17 @@ species:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/galGal6/database/rmsk.txt.gz
       repeats_fa:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/galGal6/bigZips/galGal6.fa.out.gz
-    GCF_016699485.2:
+      rnacentral:
+        url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/gallus_gallus.GRCg6a.gff3.gz
+    GCF_016699485.2:                        # bGalGal1.mat.broiler.GRCg7b
       enabled: false
       ncbi_accession: GCF_016699485.2
       genome:
         url: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/016/699/485/GCF_016699485.2_bGalGal1.mat.broiler.GRCg7b/GCF_016699485.2_bGalGal1.mat.broiler.GRCg7b_genomic.fna.gz
       annotation_gff3:
         url: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/016/699/485/GCF_016699485.2_bGalGal1.mat.broiler.GRCg7b/GCF_016699485.2_bGalGal1.mat.broiler.GRCg7b_genomic.gff.gz
+      rnacentral:
+        url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/gallus_gallus.bGalGal1.mat.broiler.GRCg7b.gff3.gz
 
   # ── Fish ─────────────────────────────────────────────────────────────────────
   Danio_rerio:                              # Zebrafish
@@ -369,6 +383,8 @@ species:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/dm6/database/rmsk.txt.gz
       repeats_fa:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/dm6/bigZips/dm6.fa.out.gz
+      rnacentral:
+        url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/drosophila_melanogaster.BDGP6.32.gff3.gz
     dm3:
       enabled: false
       ucsc_db: dm3
@@ -412,6 +428,8 @@ species:
         url: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/018/143/015/GCF_018143015.1_Lvar_3.0/GCF_018143015.1_Lvar_3.0_genomic.fna.gz
       annotation_gff3:
         url: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/018/143/015/GCF_018143015.1_Lvar_3.0/GCF_018143015.1_Lvar_3.0_genomic.gff.gz
+      rnacentral:
+        url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/lytechinus_variegatus_gca018143015v1.Lvar_3.0.gff3.gz
 
   Patiria_miniata:
     Pmin3.0:
@@ -419,6 +437,8 @@ species:
       # FASTA hosted on the Echinobase mirror; replace if a stable URL is preferred.
       genome:
         url: https://download.echinobase.org/echinobase/Genomics/Pmin3.0/Pmin_3.0.fasta.gz
+      rnacentral:
+        url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/patiria_miniata_gca015706575v1.Pmin_3.0.gff3.gz
 
   Strongylocentrotus_purpuratus:
     Spur5.0:
@@ -427,6 +447,8 @@ species:
         url: https://download.echinobase.org/echinobase/Genomics/Spur5.0/Spur_5.0.fasta.gz
       annotation_gff3:
         url: https://download.echinobase.org/echinobase/Genomics/Spur5.0/Spur_5.0.gff3.gz
+      rnacentral:
+        url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/strongylocentrotus_purpuratus.Spur_5.0.gff3.gz
     strPur2:                                # Baylor 2.1
       enabled: false
       ucsc_db: strPur2
@@ -460,10 +482,12 @@ species:
         url: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/001/433/935/GCF_001433935.1_IRGSP-1.0/GCF_001433935.1_IRGSP-1.0_genomic.fna.gz
       annotation_gff3:
         url: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/001/433/935/GCF_001433935.1_IRGSP-1.0/GCF_001433935.1_IRGSP-1.0_genomic.gff.gz
+      rnacentral:
+        url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/oryza_sativa.IRGSP-1.0.gff3.gz
 
   # ── Fungi ────────────────────────────────────────────────────────────────────
   Saccharomyces_cerevisiae:
-    sacCer3:
+    sacCer3:                                # R64-1-1
       enabled: false
       ucsc_db: sacCer3
       genome:
@@ -476,6 +500,8 @@ species:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/sacCer3/database/rmsk.txt.gz
       repeats_fa:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/sacCer3/bigZips/sacCer3.fa.out.gz
+      rnacentral:
+        url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/saccharomyces_cerevisiae.R64-1-1.gff3.gz
 
   Schizosaccharomyces_pombe:
     ASM294v2:
@@ -486,6 +512,8 @@ species:
         url: https://ftp.ensemblgenomes.org/pub/fungi/release-58/fasta/schizosaccharomyces_pombe/cdna/Schizosaccharomyces_pombe.ASM294v2.cdna.all.fa.gz
       annotation_gtf:
         url: https://ftp.ensemblgenomes.org/pub/fungi/release-58/gtf/schizosaccharomyces_pombe/Schizosaccharomyces_pombe.ASM294v2.58.gtf.gz
+      rnacentral:
+        url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/schizosaccharomyces_pombe.ASM294v2.gff3.gz
 
   Coprinopsis_cinerea:
     GCA_000182895.1:
