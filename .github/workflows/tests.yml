@@ -1,0 +1,53 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  pytest:
+    name: Run pytest (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # External tools the build pipeline shells out to.
+      #   htslib provides bgzip + tabix
+      #   samtools provides faidx
+      #   gffread is needed for transcriptome extraction
+      #   ucsc-userapps provides bedToBigBed for the BED test
+      - name: Install system tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            tabix samtools gffread
+
+      - name: Install bedToBigBed (UCSC userApps)
+        run: |
+          sudo mkdir -p /opt/ucsc
+          sudo curl -fsSL -o /opt/ucsc/bedToBigBed \
+            http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64/bedToBigBed
+          sudo chmod +x /opt/ucsc/bedToBigBed
+          echo "/opt/ucsc" >> "$GITHUB_PATH"
+
+      - name: Install refbox
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[test]" || python -m pip install -e .
+          python -m pip install pytest
+
+      - name: Run pytest
+        run: pytest -q

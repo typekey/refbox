@@ -143,3 +143,50 @@ def write_chrom_sizes(fai: Path, dst: Path) -> Path:
             if len(parts) >= 2:
                 fout.write(f"{parts[0]}\t{parts[1]}\n")
     return dst
+
+
+def extract_transcripts(genome_fa: Path, annotation: Path, dst_fa: Path) -> Path:
+    """Use ``gffread`` to extract a transcripts FASTA from genome + GTF/GFF.
+
+    ``genome_fa`` may be plain ``.fa`` or bgzip'd ``.fa.gz`` (with .fai/.gzi).
+    ``annotation`` may be ``.gtf``/``.gff3``, plain or gzipped.
+    """
+    require_tool("gffread")
+    dst_fa.parent.mkdir(parents=True, exist_ok=True)
+    # gffread reads gzipped GTF via /dev/stdin pipe; simplest is to gunzip first.
+    if str(annotation).endswith(".gz"):
+        tmp_gtf = dst_fa.with_suffix(".tmp.gtf")
+        run(f"gunzip -c {annotation!s} > {tmp_gtf!s}", shell=True)
+        gtf_arg = tmp_gtf
+    else:
+        tmp_gtf = None
+        gtf_arg = annotation
+    try:
+        # -w writes spliced exon sequences for each transcript
+        run(["gffread", "-w", str(dst_fa), "-g", str(genome_fa), str(gtf_arg)])
+    finally:
+        if tmp_gtf is not None and tmp_gtf.exists():
+            tmp_gtf.unlink()
+    return dst_fa
+
+
+def bed_to_bigbed(input_bed: Path, output_bb: Path, chrom_sizes: Path) -> Path:
+    """Convert a sorted BED to bigBed using UCSC ``bedToBigBed``.
+
+    Auto-detects column count to pick the right ``-type=bedN`` argument.
+    """
+    require_tool("bedToBigBed")
+    output_bb.parent.mkdir(parents=True, exist_ok=True)
+    n_cols = 3
+    with open(input_bed) as f:
+        for line in f:
+            if line.startswith(("#", "track", "browser")) or not line.strip():
+                continue
+            n_cols = len(line.rstrip("\n").split("\t"))
+            break
+    n_cols = min(max(n_cols, 3), 12)
+    run([
+        "bedToBigBed", f"-type=bed{n_cols}",
+        str(input_bed), str(chrom_sizes), str(output_bb),
+    ])
+    return output_bb

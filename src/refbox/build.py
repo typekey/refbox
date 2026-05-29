@@ -113,14 +113,46 @@ def build_genome(target: Target, *, force: bool = False) -> None:
 
 def build_transcriptome(target: Target, *, force: bool = False) -> None:
     src = raw_path(target, "transcriptome")
-    if not src.exists():
-        return
     out = target.build_dir / "transcripts.fa.gz"
     if _exists(out) and _exists(Path(f"{out}.fai")) and not force:
         log.info("[%s/%s] transcripts up-to-date", target.species, target.assembly)
         return
+    # If no raw transcripts FASTA, try to derive it from genome + GTF/GFF using gffread.
+    if not src.exists():
+        derived = _derive_transcripts(target)
+        if derived is None:
+            log.info("[%s/%s] no transcripts source (raw, url, or genome+gtf) — skip",
+                     target.species, target.assembly)
+            return
+        src = derived
     bgzip_file(src, out, force=force)
     faidx(out, force=force)
+
+
+def _derive_transcripts(target: Target) -> Path | None:
+    """Build a transcripts FASTA from the genome + annotation when no direct
+    transcriptome source is configured. Returns the produced raw .fa or None.
+    """
+    from .utils import extract_transcripts
+    genome = raw_path(target, "genome")
+    if not genome.exists():
+        return None
+    gtf = raw_path(target, "annotation_gtf")
+    gff = raw_path(target, "annotation_gff3")
+    annot = gtf if gtf.exists() else (gff if gff.exists() else None)
+    if annot is None:
+        return None
+    dst = target.raw_dir / "transcriptome.fa"
+    if dst.exists() and dst.stat().st_size > 0:
+        return dst
+    log.info("[%s/%s] deriving transcriptome via gffread from %s + %s",
+             target.species, target.assembly, genome.name, annot.name)
+    try:
+        extract_transcripts(genome, annot, dst)
+    except Exception as e:
+        log.error("gffread failed: %s", e)
+        return None
+    return dst if dst.exists() and dst.stat().st_size > 0 else None
 
 
 # ── annotation builders (generic GFF/GTF + BED) ────────────────────────────────
