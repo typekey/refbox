@@ -135,3 +135,14 @@ def raw_path(target: Target, resource: str) -> Path:
     """Canonical raw file path (uncompressed extension)."""
     ext = RESOURCE_EXT[resource]
     return target.raw_dir / f"{resource}.{ext}"
+
+
+def find_species_by_assembly(
+    assembly: str, config: dict[str, Any] | None = None
+) -> str | None:
+    """Return the species name that owns ``assembly``, or None if unknown."""
+    cfg = config if config is not None else load_config()
+    for sp_name, asm_map in cfg.get("species", {}).items():
+        if assembly in (asm_map or {}):
+            return sp_name
+    return None

@@ -386,11 +386,27 @@ def build_targets(
     *,
     out: str | None = None,
     force: bool = False,
+    auto_download: bool = True,
+    extra_targets: list[Target] | None = None,
 ) -> None:
+    """Build indexed outputs for the requested targets.
+
+    When ``auto_download`` is True (default), any selected resource whose raw
+    input is missing will be fetched first by reusing the download pipeline.
+    ``extra_targets`` injects ad-hoc Targets (e.g. from ``refbox import``)
+    alongside whatever ``species.yaml`` yields.
+    """
     resources = resources or RESOURCE_NAMES
-    for tgt in iter_targets(species=species, assembly=assembly, out_root=out):
+    targets = list(iter_targets(species=species, assembly=assembly, out_root=out))
+    if extra_targets:
+        targets.extend(extra_targets)
+    for tgt in targets:
         log.info("=== build %s / %s ===", tgt.species, tgt.assembly)
         tgt.build_dir.mkdir(parents=True, exist_ok=True)
+
+        if auto_download:
+            _ensure_raw_files(tgt, resources, force=False)
+
         for r in resources:
             fn = BUILDERS.get(r)
             if fn is None:
@@ -400,3 +416,24 @@ def build_targets(
             except Exception as e:
                 log.error("[%s/%s] build %s FAILED: %s",
                           tgt.species, tgt.assembly, r, e)
+
+
+def _ensure_raw_files(target: Target, resources: list[str], *, force: bool) -> None:
+    """Download any missing raw files for ``target`` before the build step.
+
+    Custom targets (those whose resources came from a directory ingest rather
+    than from species.yaml) carry empty/None spec dicts; for those we just
+    verify the raw file is on disk.
+    """
+    from .download import fetch_resource  # local import to avoid cycle
+    for r in resources:
+        if target.resource(r) is None:
+            continue
+        dst = raw_path(target, r)
+        if dst.exists() and not force:
+            continue
+        try:
+            fetch_resource(target, r, force=force)
+        except Exception as e:
+            log.error("[%s/%s] auto-download %s FAILED: %s",
+                      target.species, target.assembly, r, e)
