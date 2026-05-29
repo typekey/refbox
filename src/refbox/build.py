@@ -223,6 +223,21 @@ def build_repeats_bed(target: Target, *, force: bool = False) -> None:
     _build_sorted_bed(src, target.build_dir / "repeats.sorted.bed.gz", force=force)
 
 
+def build_repeats_rmsk(target: Target, *, force: bool = False) -> None:
+    """When ``repeats_rmsk`` is selected, derive both BED and GTF outputs.
+
+    The raw UCSC ``rmsk.txt.gz`` is downloaded by the fetch step; this builder
+    fans it out to the canonical ``repeats.sorted.bed.gz`` +
+    ``repeats.sorted.gtf.gz`` so callers do not have to also pass
+    ``repeats_bed`` and ``repeats_gtf`` explicitly.
+    """
+    rmsk = raw_path(target, "repeats_rmsk")
+    if not rmsk.exists():
+        return
+    build_repeats_bed(target, force=force)
+    build_repeats_gtf(target, force=force)
+
+
 def _ensembl_to_ucsc_chrom(name: str) -> str:
     """Map a single Ensembl-style chrom to UCSC convention (chr1, chrX, chrM)."""
     if name.startswith("chr"):
@@ -402,7 +417,7 @@ BUILDERS = {
     "transcriptome":   build_transcriptome,
     "annotation_gtf":  build_annotation_gtf,
     "annotation_gff3": build_annotation_gff3,
-    "repeats_rmsk":    None,   # raw TSV — converted to bed/gtf in repeats build step (TODO)
+    "repeats_rmsk":    build_repeats_rmsk,
     "repeats_gtf":     build_repeats_gtf,
     "repeats_bed":     build_repeats_bed,
     "repeats_fa":      None,   # RepeatMasker .fa.out is a flat report — handled later

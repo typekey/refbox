@@ -51,11 +51,10 @@ species:
       ucsc_db: hg18
       genome:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/hg18/bigZips/hg18.fa.gz
-      repeats_rmsk:
-        url: https://hgdownload.soe.ucsc.edu/goldenPath/hg18/database/rmsk.txt.gz
-      repeats_fa:
-        url: https://hgdownload.soe.ucsc.edu/goldenPath/hg18/bigZips/hg18.fa.out.gz
-      transcriptome: null
+      repeats_rmsk: null
+      repeats_fa: null
+      transcriptome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/hg18/bigZips/refMrna.fa.gz
       annotation_gtf: null
       annotation_gff3: null
       repeats_bed: null
@@ -67,14 +66,12 @@ species:
       ucsc_db: hs1
       genome:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/hs1/bigZips/hs1.fa.gz
-      transcriptome:
-        url: https://hgdownload.soe.ucsc.edu/goldenPath/hs1/bigZips/genes/catLiftOffGenesV1.fa.gz
+      transcriptome: null
       annotation_gtf:
-        url: https://hgdownload.soe.ucsc.edu/goldenPath/hs1/bigZips/genes/catLiftOffGenesV1.gtf.gz
-      repeats_rmsk:
-        url: https://hgdownload.soe.ucsc.edu/goldenPath/hs1/database/rmsk.txt.gz
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/hs1/bigZips/genes/hs1.ncbiRefSeq.gtf.gz
+      repeats_rmsk: null
       repeats_fa:
-        url: https://hgdownload.soe.ucsc.edu/goldenPath/hs1/bigZips/hs1.fa.out.gz
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/hs1/bigZips/hs1.repeatMasker.out.gz
       annotation_gff3: null
       repeats_bed: null
       repeats_gtf: null
@@ -132,12 +129,12 @@ species:
       ucsc_db: mm9
       genome:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/mm9/bigZips/mm9.fa.gz
-      repeats_rmsk:
-        url: https://hgdownload.soe.ucsc.edu/goldenPath/mm9/database/rmsk.txt.gz
-      repeats_fa:
-        url: https://hgdownload.soe.ucsc.edu/goldenPath/mm9/bigZips/mm9.fa.out.gz
-      transcriptome: null
-      annotation_gtf: null
+      repeats_rmsk: null
+      repeats_fa: null
+      transcriptome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/mm9/bigZips/refMrna.fa.gz
+      annotation_gtf:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/mm9/bigZips/genes/mm9.refGene.gtf.gz
       annotation_gff3: null
       repeats_bed: null
       repeats_gtf: null
@@ -157,8 +154,10 @@ species:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/panTro4/database/rmsk.txt.gz
       repeats_fa:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/panTro4/bigZips/panTro4.fa.out.gz
-      transcriptome: null
-      annotation_gtf: null
+      transcriptome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/panTro4/bigZips/refMrna.fa.gz
+      annotation_gtf:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/panTro4/bigZips/genes/panTro4.ncbiRefSeq.gtf.gz
       annotation_gff3: null
       repeats_bed: null
       repeats_gtf: null
@@ -174,8 +173,10 @@ species:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/panPan2/database/rmsk.txt.gz
       repeats_fa:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/panPan2/bigZips/panPan2.fa.out.gz
-      transcriptome: null
-      annotation_gtf: null
+      transcriptome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/panPan2/bigZips/refMrna.fa.gz
+      annotation_gtf:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/panPan2/bigZips/genes/panPan2.ncbiRefSeq.gtf.gz
       annotation_gff3: null
       repeats_bed: null
       repeats_gtf: null
@@ -193,8 +194,10 @@ species:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/gorGor4/bigZips/gorGor4.fa.out.gz
       rnacentral:
         url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/gorilla_gorilla.gorGor4.gff3.gz
-      transcriptome: null
-      annotation_gtf: null
+      transcriptome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/gorGor4/bigZips/refMrna.fa.gz
+      annotation_gtf:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/gorGor4/bigZips/genes/gorGor4.refGene.gtf.gz
       annotation_gff3: null
       repeats_bed: null
       repeats_gtf: null
@@ -209,7 +212,8 @@ species:
       repeats_fa:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/gorGor6/bigZips/gorGor6.fa.out.gz
       transcriptome: null
-      annotation_gtf: null
+      annotation_gtf:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/gorGor6/bigZips/genes/ncbiRefSeq.gtf.gz
       annotation_gff3: null
       repeats_bed: null
       repeats_gtf: null
@@ -220,8 +224,7 @@ species:
       enabled: false
       genome:
         url: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/011/100/615/GCA_011100615.1_Macaca_fascicularis_6.0/GCA_011100615.1_Macaca_fascicularis_6.0_genomic.fna.gz
-      annotation_gff3:
-        url: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/011/100/615/GCA_011100615.1_Macaca_fascicularis_6.0/GCA_011100615.1_Macaca_fascicularis_6.0_genomic.gff.gz
+      annotation_gff3: null
       rnacentral:
         url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/macaca_fascicularis.Macaca_fascicularis_6.0.gff3.gz
       ncbi_accession: GCA_011100615.1
@@ -242,8 +245,10 @@ species:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/bosTau8/database/rmsk.txt.gz
       repeats_fa:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/bosTau8/bigZips/bosTau8.fa.out.gz
-      transcriptome: null
-      annotation_gtf: null
+      transcriptome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/bosTau8/bigZips/refMrna.fa.gz
+      annotation_gtf:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/bosTau8/bigZips/genes/bosTau8.refGene.gtf.gz
       annotation_gff3: null
       repeats_bed: null
       repeats_gtf: null
@@ -260,8 +265,10 @@ species:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/bosTau9/bigZips/bosTau9.fa.out.gz
       rnacentral:
         url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/bos_taurus.ARS-UCD1.2.gff3.gz
-      transcriptome: null
-      annotation_gtf: null
+      transcriptome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/bosTau9/bigZips/refMrna.fa.gz
+      annotation_gtf:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/bosTau9/bigZips/genes/bosTau9.ncbiRefSeq.gtf.gz
       annotation_gff3: null
       repeats_bed: null
       repeats_gtf: null
@@ -278,8 +285,10 @@ species:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/susScr11/bigZips/susScr11.fa.out.gz
       rnacentral:
         url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/sus_scrofa.Sscrofa11.1.gff3.gz
-      transcriptome: null
-      annotation_gtf: null
+      transcriptome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/susScr11/bigZips/refMrna.fa.gz
+      annotation_gtf:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/susScr11/bigZips/genes/susScr11.ncbiRefSeq.gtf.gz
       annotation_gff3: null
       repeats_bed: null
       repeats_gtf: null
@@ -294,8 +303,10 @@ species:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/canFam3/database/rmsk.txt.gz
       repeats_fa:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/canFam3/bigZips/canFam3.fa.out.gz
-      transcriptome: null
-      annotation_gtf: null
+      transcriptome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/canFam3/bigZips/refMrna.fa.gz
+      annotation_gtf:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/canFam3/bigZips/genes/canFam3.ncbiRefSeq.gtf.gz
       annotation_gff3: null
       repeats_bed: null
       repeats_gtf: null
@@ -311,7 +322,8 @@ species:
       repeats_fa:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/canFam4/bigZips/canFam4.fa.out.gz
       transcriptome: null
-      annotation_gtf: null
+      annotation_gtf:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/canFam4/bigZips/genes/canFam4.ncbiRefSeq.gtf.gz
       annotation_gff3: null
       repeats_bed: null
       repeats_gtf: null
@@ -327,7 +339,8 @@ species:
       repeats_fa:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/canFam5/bigZips/canFam5.fa.out.gz
       transcriptome: null
-      annotation_gtf: null
+      annotation_gtf:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/canFam5/bigZips/genes/refGene.gtf.gz
       annotation_gff3: null
       repeats_bed: null
       repeats_gtf: null
@@ -343,8 +356,10 @@ species:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/rn6/database/rmsk.txt.gz
       repeats_fa:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/rn6/bigZips/rn6.fa.out.gz
-      transcriptome: null
-      annotation_gtf: null
+      transcriptome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/rn6/bigZips/refMrna.fa.gz
+      annotation_gtf:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/rn6/bigZips/genes/rn6.ncbiRefSeq.gtf.gz
       annotation_gff3: null
       repeats_bed: null
       repeats_gtf: null
@@ -366,7 +381,8 @@ species:
       rnacentral:
         url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/rattus_norvegicus.mRatBN7.2.gff3.gz
       transcriptome: null
-      annotation_gtf: null
+      annotation_gtf:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/rn7/bigZips/genes/ncbiRefSeq.gtf.gz
       annotation_gff3: null
       repeats_bed: null
       repeats_gtf: null
@@ -383,8 +399,10 @@ species:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/galGal6/bigZips/galGal6.fa.out.gz
       rnacentral:
         url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/gallus_gallus.GRCg6a.gff3.gz
-      transcriptome: null
-      annotation_gtf: null
+      transcriptome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/galGal6/bigZips/refMrna.fa.gz
+      annotation_gtf:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/galGal6/bigZips/genes/galGal6.ncbiRefSeq.gtf.gz
       annotation_gff3: null
       repeats_bed: null
       repeats_gtf: null
@@ -436,8 +454,10 @@ species:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/danRer10/database/rmsk.txt.gz
       repeats_fa:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/danRer10/bigZips/danRer10.fa.out.gz
-      transcriptome: null
-      annotation_gtf: null
+      transcriptome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/danRer10/bigZips/refMrna.fa.gz
+      annotation_gtf:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/danRer10/bigZips/genes/danRer10.ncbiRefSeq.gtf.gz
       annotation_gff3: null
       repeats_bed: null
       repeats_gtf: null
@@ -476,8 +496,10 @@ species:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/dm6/bigZips/dm6.fa.out.gz
       rnacentral:
         url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/drosophila_melanogaster.BDGP6.32.gff3.gz
-      transcriptome: null
-      annotation_gtf: null
+      transcriptome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/dm6/bigZips/refMrna.fa.gz
+      annotation_gtf:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/dm6/bigZips/genes/dm6.ncbiRefSeq.gtf.gz
       annotation_gff3: null
       repeats_bed: null
       repeats_gtf: null
@@ -487,12 +509,12 @@ species:
       ucsc_db: dm3
       genome:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/dm3/bigZips/dm3.fa.gz
-      repeats_rmsk:
-        url: https://hgdownload.soe.ucsc.edu/goldenPath/dm3/database/rmsk.txt.gz
-      repeats_fa:
-        url: https://hgdownload.soe.ucsc.edu/goldenPath/dm3/bigZips/dm3.fa.out.gz
-      transcriptome: null
-      annotation_gtf: null
+      repeats_rmsk: null
+      repeats_fa: null
+      transcriptome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/dm3/bigZips/refMrna.fa.gz
+      annotation_gtf:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/dm3/bigZips/genes/dm3.refGene.gtf.gz
       annotation_gff3: null
       repeats_bed: null
       repeats_gtf: null
@@ -526,8 +548,7 @@ species:
         url: https://ftp.ensembl.org/pub/release-111/gff3/caenorhabditis_elegans/Caenorhabditis_elegans.WBcel235.111.gff3.gz
       repeats_rmsk:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/ce11/database/rmsk.txt.gz
-      repeats_fa:
-        url: https://hgdownload.soe.ucsc.edu/goldenPath/ce11/bigZips/ce11.fa.out.gz
+      repeats_fa: null
       rnacentral:
         url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/caenorhabditis_elegans.WBcel235.gff3.gz
       repeats_bed: null
@@ -585,8 +606,10 @@ species:
       ucsc_db: strPur2
       genome:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/strPur2/bigZips/strPur2.fa.gz
-      transcriptome: null
-      annotation_gtf: null
+      transcriptome:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/strPur2/bigZips/refMrna.fa.gz
+      annotation_gtf:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/strPur2/bigZips/genes/strPur2.refGene.gtf.gz
       annotation_gff3: null
       repeats_rmsk: null
       repeats_bed: null
@@ -640,10 +663,8 @@ species:
         url: https://ftp.ensemblgenomes.org/pub/fungi/release-58/fasta/saccharomyces_cerevisiae/cdna/Saccharomyces_cerevisiae.R64-1-1.cdna.all.fa.gz
       annotation_gtf:
         url: https://ftp.ensemblgenomes.org/pub/fungi/release-58/gtf/saccharomyces_cerevisiae/Saccharomyces_cerevisiae.R64-1-1.58.gtf.gz
-      repeats_rmsk:
-        url: https://hgdownload.soe.ucsc.edu/goldenPath/sacCer3/database/rmsk.txt.gz
-      repeats_fa:
-        url: https://hgdownload.soe.ucsc.edu/goldenPath/sacCer3/bigZips/sacCer3.fa.out.gz
+      repeats_rmsk: null
+      repeats_fa: null
       rnacentral:
         url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/saccharomyces_cerevisiae.R64-1-1.gff3.gz
       annotation_gff3: null
