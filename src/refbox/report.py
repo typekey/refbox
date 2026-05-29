@@ -20,7 +20,7 @@ from .config import load_config
 ARTIFACTS = [
     ("基因组 (Genome)",        "genome.fa.gz",              [".fai", ".gzi"]),
     ("转录组 (Transcriptome)", "transcriptome.fa.gz",         [".fai"]),
-    ("转录组 derived (gffread)", "transcriptome.derived.fa.gz", [".fai"]),
+    ("转录组 derived (spliced)", "transcriptome.derived.fa.gz", [".fai"]),
     ("基因注释 GTF",           "annotation.sorted.gtf.gz",  [".tbi"]),
     ("基因注释 GFF3",          "annotation.sorted.gff3.gz", [".tbi"]),
     ("重复元件 BED",           "repeats.sorted.bed.gz",     [".tbi"]),

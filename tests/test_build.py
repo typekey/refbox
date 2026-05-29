@@ -154,8 +154,9 @@ def test_build_transcriptome(workspace: Path):
     assert Path(str(out) + ".fai").exists()
     fai_lines = Path(str(out) + ".fai").read_text().strip().splitlines()
     names = [l.split("\t")[0] for l in fai_lines]
-    # two transcripts defined in the GTF
-    assert "t1" in names and "t2" in names
+    # two transcripts defined in the GTF; headers are GENCODE-style pipe-delimited
+    tids = {n.split("|")[0] for n in names}
+    assert "t1" in tids and "t2" in tids
 
 
 # ── auto-detect ───────────────────────────────────────────────────────────────

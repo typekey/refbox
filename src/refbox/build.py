@@ -114,7 +114,8 @@ def build_genome(target: Target, *, force: bool = False) -> None:
 def build_transcriptome(target: Target, *, force: bool = False) -> None:
     """Build ``transcriptome.fa.gz`` (preferred upstream / Ensembl) and, when
     a genome + GTF/GFF are available, also ``transcriptome.derived.fa.gz``
-    (gffread-extracted, GENCODE-style spliced exon sequences) for comparison.
+    (spliced-exon FASTA built in-process with GENCODE-style headers) for
+    comparison.
     """
     src = raw_path(target, "transcriptome")
     out = target.build_dir / "transcriptome.fa.gz"
@@ -159,12 +160,12 @@ def _derive_transcripts(target: Target) -> Path | None:
     dst = target.raw_dir / "transcriptome.derived.fa"
     if dst.exists() and dst.stat().st_size > 0:
         return dst
-    log.info("[%s/%s] deriving transcriptome via gffread from %s + %s",
+    log.info("[%s/%s] deriving transcriptome (spliced exons, GENCODE-style) from %s + %s",
              target.species, target.assembly, genome.name, annot.name)
     try:
         extract_transcripts(genome, annot, dst)
     except Exception as e:
-        log.error("gffread failed: %s", e)
+        log.error("extract_transcripts failed: %s", e)
         return None
     return dst if dst.exists() and dst.stat().st_size > 0 else None
 
