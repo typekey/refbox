@@ -420,6 +420,7 @@ def build_targets(
     force: bool = False,
     auto_download: bool = True,
     extra_targets: list[Target] | None = None,
+    include_disabled: bool = False,
 ) -> None:
     """Build indexed outputs for the requested targets.
 
@@ -429,7 +430,8 @@ def build_targets(
     alongside whatever ``species.yaml`` yields.
     """
     resources = resources or RESOURCE_NAMES
-    targets = list(iter_targets(species=species, assembly=assembly, out_root=out))
+    targets = list(iter_targets(species=species, assembly=assembly,
+                                 out_root=out, include_disabled=include_disabled))
     if extra_targets:
         targets.extend(extra_targets)
     for tgt in targets:

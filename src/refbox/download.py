@@ -205,10 +205,12 @@ def download_targets(
     *,
     out: str | None = None,
     force: bool = False,
+    include_disabled: bool = False,
 ) -> None:
     resources = resources or RESOURCE_NAMES
     log.info("download backend: %s  connections: %s", _download_backend(), CONNECTIONS)
-    for tgt in iter_targets(species=species, assembly=assembly, out_root=out):
+    for tgt in iter_targets(species=species, assembly=assembly, out_root=out,
+                            include_disabled=include_disabled):
         log.info("=== download %s / %s ===", tgt.species, tgt.assembly)
         for r in resources:
             try:

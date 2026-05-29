@@ -120,9 +120,11 @@ def test_targets(
     assembly: list[str] | None = None,
     *,
     out: str | None = None,
+    include_disabled: bool = False,
 ) -> int:
     failures = 0
-    for tgt in iter_targets(species=species, assembly=assembly, out_root=out):
+    for tgt in iter_targets(species=species, assembly=assembly, out_root=out,
+                            include_disabled=include_disabled):
         print(f"\n=== {tgt.species} / {tgt.assembly} ===")
         for r in check_target(tgt):
             mark = "OK " if r.ok else "FAIL"

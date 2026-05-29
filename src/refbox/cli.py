@@ -50,12 +50,16 @@ def _resolve_species(
 def _common_filters(p: argparse.ArgumentParser) -> None:
     p.add_argument("--species", nargs="*",
                    help="species name (optional; inferred from --assembly)")
-    p.add_argument("--assembly", nargs="*", required=True,
-                   help="assembly identifier (e.g. GRCh38)")
+    p.add_argument("--assembly", nargs="*", default=None,
+                   help="assembly identifier (e.g. GRCh38). Omit to run every "
+                        "assembly that matches --species (or all assemblies if "
+                        "neither is given).")
     p.add_argument("--resource", nargs="*", dest="resources",
                    help="subset of resources (genome, transcriptome, ...)")
     p.add_argument("--out", default=None,
                    help="output root (default: $REFBOX_OUT or current directory)")
+    p.add_argument("--include-disabled", action="store_true",
+                   help="include assemblies marked enabled: false in species.yaml")
 
 
 def _parse_map(items: list[str] | None) -> dict[str, Path]:
@@ -203,20 +207,24 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "download":
         species = _resolve_species(args.species, args.assembly)
         download_targets(species=species, assembly=args.assembly,
-                         resources=args.resources, out=args.out, force=args.force)
+                         resources=args.resources, out=args.out, force=args.force,
+                         include_disabled=args.include_disabled)
         return 0
     if args.cmd == "pull":
         species = _resolve_species(args.species, args.assembly)
         build_targets(species=species, assembly=args.assembly,
                       resources=args.resources, out=args.out, force=args.force,
-                      auto_download=not args.no_download)
+                      auto_download=not args.no_download,
+                      include_disabled=args.include_disabled)
         if args.no_test:
             return 0
-        failed = test_targets(species=species, assembly=args.assembly, out=args.out)
+        failed = test_targets(species=species, assembly=args.assembly, out=args.out,
+                              include_disabled=args.include_disabled)
         return 1 if failed else 0
     if args.cmd == "test":
         species = _resolve_species(args.species, args.assembly)
-        failed = test_targets(species=species, assembly=args.assembly, out=args.out)
+        failed = test_targets(species=species, assembly=args.assembly, out=args.out,
+                              include_disabled=args.include_disabled)
         return 1 if failed else 0
     if args.cmd == "build":
         return _dispatch_build(args)
