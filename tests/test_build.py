@@ -149,7 +149,7 @@ def test_build_transcriptome(workspace: Path):
     g = workspace / "genome.fa"
     subprocess.run(["samtools", "faidx", str(g)], check=True)
     out = fb.build_transcriptome(g, workspace / "annot.gtf",
-                                 workspace / "transcripts.fa.gz")
+                                 workspace / "transcriptome.fa.gz")
     assert out.exists() and _is_bgzip(out)
     assert Path(str(out) + ".fai").exists()
     fai_lines = Path(str(out) + ".fai").read_text().strip().splitlines()

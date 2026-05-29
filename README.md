@@ -93,8 +93,8 @@ refbox build -fa  GENOME.fa [-o OUT.fa.gz]
 refbox build -gtf ANNOT.gtf [-o OUT.gtf.gz]
 refbox build -gff ANNOT.gff3 [-o OUT.gff3.gz]
 
-# Genome + annotation → transcripts FASTA (via gffread) + faidx
-refbox build -fa GENOME.fa -gtf ANNOT.gtf -o transcripts.fa.gz
+# Genome + annotation → transcriptome FASTA (via gffread) + faidx
+refbox build -fa GENOME.fa -gtf ANNOT.gtf -o transcriptome.fa.gz
 
 # BED → sorted + bgzip + tabix + bigBed
 #   chrom.sizes resolved from --chrom-sizes FILE or --assembly NAME
@@ -143,7 +143,8 @@ refbox test     --include-disabled                 # everything in the registry
       build/                        # browser-loadable
         genome.fa.gz                 + .fai + .gzi
         chrom.sizes
-        transcripts.fa.gz            + .fai
+        transcriptome.fa.gz          + .fai
+        transcriptome.derived.fa.gz  + .fai   # gffread-extracted, when GTF available
         annotation.sorted.gtf.gz     + .tbi
         annotation.sorted.gff3.gz    + .tbi
         repeats.sorted.bed.gz        + .tbi
@@ -210,6 +211,14 @@ my_resource:
 ```
 
 ```yaml
+# Concatenate multiple upstream files into one raw file (e.g. Ensembl cdna+ncrna):
+transcriptome:
+  url:        https://ftp.ensembl.org/pub/release-111/fasta/danio_rerio/cdna/Danio_rerio.GRCz11.cdna.all.fa.gz
+  extra_urls:
+    - https://ftp.ensembl.org/pub/release-111/fasta/danio_rerio/ncrna/Danio_rerio.GRCz11.ncrna.fa.gz
+```
+
+```yaml
 # RNAcentral cross-assembly liftover (no direct URL upstream):
 rnacentral:
   liftover_from:
@@ -220,7 +229,7 @@ rnacentral:
 
 ```yaml
 # Transcriptome auto-derivation: leave it null and refbox will build
-# transcripts.fa.gz from genome + GTF/GFF via gffread.
+# transcriptome.fa.gz from genome + GTF/GFF via gffread.
 transcriptome: null
 ```
 
@@ -229,7 +238,7 @@ transcriptome: null
 | Name | raw/ | build/ |
 |---|---|---|
 | `genome` | `genome.fa` | `genome.fa.gz` + `.fai` + `.gzi`, `chrom.sizes` |
-| `transcriptome` | `transcriptome.fa` | `transcripts.fa.gz` + `.fai` |
+| `transcriptome` | `transcriptome.fa` | `transcriptome.fa.gz` + `.fai`<br>`transcriptome.derived.fa.gz` + `.fai` |
 | `annotation_gtf` | `annotation_gtf.gtf` | `annotation.sorted.gtf.gz` + `.tbi` |
 | `annotation_gff3` | `annotation_gff3.gff3` | `annotation.sorted.gff3.gz` + `.tbi` |
 | `repeats_rmsk` | `repeats_rmsk.tsv` | `repeats.sorted.bed.gz` + `repeats.sorted.gtf.gz` |

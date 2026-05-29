@@ -14,7 +14,7 @@ Subcommands
     refbox build -gff ANNOT.gff3 [-o OUT.gff3.gz]
     refbox build -bed FEATURES.bed [-o OUT.bed.gz] [--chrom-sizes FILE | --assembly NAME]
     refbox build -rmsk rmsk.txt.gz [-o OUT_DIR]
-    refbox build -fa GENOME.fa -gtf ANNOT.gtf -o transcripts.fa.gz   # extract transcripts
+    refbox build -fa GENOME.fa -gtf ANNOT.gtf -o transcriptome.fa.gz # extract transcriptome
     refbox build -i DIR --assembly GRCh38 [--species NAME]            # directory ingest
     refbox build SOMEFILE        # auto-detect (-i for directories)
 """

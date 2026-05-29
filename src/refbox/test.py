@@ -91,10 +91,11 @@ def check_target(target: Target) -> list[CheckResult]:
         if chrom:
             results.append(_samtools_seq(genome, f"{chrom}:1-100"))
 
-    # transcripts
-    tx = b / "transcripts.fa.gz"
-    if tx.exists():
-        results.append(_check_pair(tx, ".fai", "transcripts+fai"))
+    # transcriptome (primary + optional derived)
+    for name in ("transcriptome.fa.gz", "transcriptome.derived.fa.gz"):
+        tx = b / name
+        if tx.exists():
+            results.append(_check_pair(tx, ".fai", f"{name}+fai"))
 
     # annotated indices + sample query
     chrom = _first_chrom(fai) if fai.exists() else None

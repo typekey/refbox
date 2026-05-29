@@ -112,26 +112,40 @@ def build_genome(target: Target, *, force: bool = False) -> None:
 
 
 def build_transcriptome(target: Target, *, force: bool = False) -> None:
+    """Build ``transcriptome.fa.gz`` (preferred upstream / Ensembl) and, when
+    a genome + GTF/GFF are available, also ``transcriptome.derived.fa.gz``
+    (gffread-extracted, GENCODE-style spliced exon sequences) for comparison.
+    """
     src = raw_path(target, "transcriptome")
-    out = target.build_dir / "transcripts.fa.gz"
-    if _exists(out) and _exists(Path(f"{out}.fai")) and not force:
-        log.info("[%s/%s] transcripts up-to-date", target.species, target.assembly)
-        return
-    # If no raw transcripts FASTA, try to derive it from genome + GTF/GFF using gffread.
-    if not src.exists():
-        derived = _derive_transcripts(target)
-        if derived is None:
-            log.info("[%s/%s] no transcripts source (raw, url, or genome+gtf) — skip",
+    out = target.build_dir / "transcriptome.fa.gz"
+
+    # 1) primary: upstream-provided transcriptome (e.g. GENCODE / Ensembl cdna+ncrna)
+    if src.exists():
+        if not (_exists(out) and _exists(Path(f"{out}.fai"))) or force:
+            bgzip_file(src, out, force=force)
+            faidx(out, force=force)
+        else:
+            log.info("[%s/%s] transcriptome up-to-date", target.species, target.assembly)
+    else:
+        log.info("[%s/%s] no upstream transcriptome — skipping primary",
+                 target.species, target.assembly)
+
+    # 2) derived (always, when genome + annotation available)
+    derived_raw = _derive_transcripts(target)
+    if derived_raw is not None:
+        derived_out = target.build_dir / "transcriptome.derived.fa.gz"
+        if not (_exists(derived_out) and _exists(Path(f"{derived_out}.fai"))) or force:
+            bgzip_file(derived_raw, derived_out, force=force)
+            faidx(derived_out, force=force)
+        else:
+            log.info("[%s/%s] derived transcriptome up-to-date",
                      target.species, target.assembly)
-            return
-        src = derived
-    bgzip_file(src, out, force=force)
-    faidx(out, force=force)
 
 
 def _derive_transcripts(target: Target) -> Path | None:
-    """Build a transcripts FASTA from the genome + annotation when no direct
-    transcriptome source is configured. Returns the produced raw .fa or None.
+    """Build a transcripts FASTA from the genome + annotation. Returns the
+    produced raw .fa or None. Always written as ``raw/transcriptome.derived.fa``
+    so it never clashes with an upstream-provided ``raw/transcriptome.fa``.
     """
     from .utils import extract_transcripts
     genome = raw_path(target, "genome")
@@ -142,7 +156,7 @@ def _derive_transcripts(target: Target) -> Path | None:
     annot = gtf if gtf.exists() else (gff if gff.exists() else None)
     if annot is None:
         return None
-    dst = target.raw_dir / "transcriptome.fa"
+    dst = target.raw_dir / "transcriptome.derived.fa"
     if dst.exists() and dst.stat().st_size > 0:
         return dst
     log.info("[%s/%s] deriving transcriptome via gffread from %s + %s",

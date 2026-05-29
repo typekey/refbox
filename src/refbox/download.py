@@ -195,11 +195,27 @@ def fetch_resource(target: Target, resource: str, *, force: bool = False) -> Pat
 
     local = spec.get("local_path")
     url = spec.get("url")
+    extras = spec.get("extra_urls") or []
     if local and Path(local).exists():
         _copy_or_decompress(Path(local), dst)
         return dst
     if url:
         _download(url, dst)
+        # Append any extra URLs (e.g. Ensembl ncrna alongside cdna). We download
+        # each to a sibling .part file, decompress if needed, and concatenate.
+        for extra_url in extras:
+            extra_tmp = dst.with_suffix(dst.suffix + ".extra.part")
+            try:
+                _download(extra_url, extra_tmp)
+                # _download decompresses .gz when dst extension is not .gz, so
+                # extra_tmp matches dst's compression state.
+                with open(dst, "ab") as out, open(extra_tmp, "rb") as fin:
+                    shutil.copyfileobj(fin, out, length=CHUNK)
+                log.info("[%s/%s] %s: appended %s",
+                         target.species, target.assembly, resource, extra_url)
+            finally:
+                if extra_tmp.exists():
+                    extra_tmp.unlink()
         return dst
     log.warning("[%s/%s] %s has neither readable local_path nor url",
                 target.species, target.assembly, resource)

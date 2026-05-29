@@ -19,7 +19,8 @@ from .config import load_config
 # (display_name, build_dir filename used as the "primary" artifact, [index siblings])
 ARTIFACTS = [
     ("基因组 (Genome)",        "genome.fa.gz",              [".fai", ".gzi"]),
-    ("转录组 (Transcriptome)", "transcripts.fa.gz",         [".fai"]),
+    ("转录组 (Transcriptome)", "transcriptome.fa.gz",         [".fai"]),
+    ("转录组 derived (gffread)", "transcriptome.derived.fa.gz", [".fai"]),
     ("基因注释 GTF",           "annotation.sorted.gtf.gz",  [".tbi"]),
     ("基因注释 GFF3",          "annotation.sorted.gff3.gz", [".tbi"]),
     ("重复元件 BED",           "repeats.sorted.bed.gz",     [".tbi"]),

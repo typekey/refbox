@@ -115,10 +115,10 @@ def build_transcriptome(
     genome_fa: Path, annotation: Path, output: Path | None = None,
 ) -> Path:
     """Extract a transcripts FASTA from ``genome_fa`` + ``annotation`` and
-    produce the indexed ``transcripts.fa.gz`` + ``.fai``/``.gzi``.
+    produce the indexed ``transcriptome.fa.gz`` + ``.fai``/``.gzi``.
     """
     if output is None:
-        output = annotation.with_name("transcripts.fa.gz")
+        output = annotation.with_name("transcriptome.fa.gz")
     output = Path(output)
     if not str(output).endswith(".gz"):
         output = output.with_suffix(output.suffix + ".gz")
