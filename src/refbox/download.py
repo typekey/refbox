@@ -39,12 +39,19 @@ def _has(tool: str) -> bool:
     return shutil.which(tool) is not None
 
 
+def _download_backends() -> list[str]:
+    """Return all available download backends in priority order."""
+    backends = [t for t in ("axel", "aria2c", "wget") if _has(t)]
+    if _has("wget"):
+        backends.append("wget-insecure")
+    backends.append("requests")
+    backends.append("requests-insecure")
+    return backends
+
+
 def _download_backend() -> str:
-    """Return the best available CLI download backend name."""
-    for tool in ("axel", "aria2c", "wget"):
-        if _has(tool):
-            return tool
-    return "requests"
+    """Return the highest-priority backend (kept for log line / API)."""
+    return _download_backends()[0]
 
 
 # ── local copy ────────────────────────────────────────────────────────────────
@@ -68,12 +75,13 @@ def _run(cmd: list[str]) -> None:
 
 
 def _dl_axel(url: str, tmp: Path) -> None:
-    _run(["axel", "-n", str(CONNECTIONS), "-a", "-o", str(tmp), url])
+    _run(["axel", "-q", "-n", str(CONNECTIONS), "-a", "-o", str(tmp), url])
 
 
 def _dl_aria2c(url: str, tmp: Path) -> None:
     _run([
         "aria2c",
+        "-q",
         "-x", str(CONNECTIONS), "-s", str(CONNECTIONS),
         "-k", "10M",
         "--file-allocation=none",
@@ -83,16 +91,30 @@ def _dl_aria2c(url: str, tmp: Path) -> None:
 
 
 def _dl_wget(url: str, tmp: Path) -> None:
-    _run(["wget", "--no-verbose", "--show-progress", "-O", str(tmp), url])
+    _run(["wget", "--quiet", "--tries=3", "--timeout=60", "-O", str(tmp), url])
+
+
+def _dl_wget_insecure(url: str, tmp: Path) -> None:
+    _run(["wget", "--quiet", "--tries=3", "--timeout=60",
+          "--no-check-certificate", "-O", str(tmp), url])
 
 
 def _dl_requests(url: str, tmp: Path) -> None:
-    log.info("downloading (requests) %s -> %s", url, tmp)
-    with requests.get(url, stream=True, timeout=60) as r:
+    _requests_get(url, tmp, verify=True)
+
+
+def _dl_requests_insecure(url: str, tmp: Path) -> None:
+    _requests_get(url, tmp, verify=False)
+
+
+def _requests_get(url: str, tmp: Path, *, verify: bool) -> None:
+    log.info("downloading (requests, verify=%s) %s -> %s", verify, url, tmp)
+    with requests.get(url, stream=True, timeout=60, verify=verify) as r:
         r.raise_for_status()
         total = int(r.headers.get("Content-Length", 0))
         with open(tmp, "wb") as f, tqdm(
-            total=total or None, unit="B", unit_scale=True, desc=tmp.name
+            total=total or None, unit="B", unit_scale=True,
+            desc=tmp.name, disable=not log.isEnabledFor(logging.DEBUG),
         ) as bar:
             for chunk in r.iter_content(chunk_size=CHUNK):
                 f.write(chunk)
@@ -100,10 +122,12 @@ def _dl_requests(url: str, tmp: Path) -> None:
 
 
 _BACKENDS = {
-    "axel":     _dl_axel,
-    "aria2c":   _dl_aria2c,
-    "wget":     _dl_wget,
-    "requests": _dl_requests,
+    "axel":               _dl_axel,
+    "aria2c":             _dl_aria2c,
+    "wget":               _dl_wget,
+    "wget-insecure":      _dl_wget_insecure,
+    "requests":           _dl_requests,
+    "requests-insecure":  _dl_requests_insecure,
 }
 
 
@@ -111,9 +135,32 @@ def _download(url: str, dst: Path) -> None:
     dst.parent.mkdir(parents=True, exist_ok=True)
     tmp = dst.with_suffix(dst.suffix + ".part")
 
-    backend = _download_backend()
-    log.info("[%s] %s -> %s", backend, url, dst)
-    _BACKENDS[backend](url, tmp)
+    backends = _download_backends()
+    last_err: Exception | None = None
+    for backend in backends:
+        # Clean up any partial leftover from a previous backend.
+        if tmp.exists():
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
+        # axel also writes a sidecar .st state file; remove it too.
+        st = Path(str(tmp) + ".st")
+        if st.exists():
+            try:
+                st.unlink()
+            except OSError:
+                pass
+        log.info("[%s] %s -> %s", backend, url, dst)
+        try:
+            _BACKENDS[backend](url, tmp)
+            break
+        except (subprocess.CalledProcessError, requests.RequestException) as e:
+            last_err = e
+            log.warning("[%s] failed for %s (%s); trying next backend",
+                        backend, url, e)
+    else:
+        raise RuntimeError(f"all download backends failed for {url}: {last_err}")
 
     # decompress on-the-fly if the source URL is .gz but the target ext is not
     if url.endswith(".gz") and not str(dst).endswith(".gz"):

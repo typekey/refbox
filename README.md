@@ -287,6 +287,12 @@ git push origin v0.3.0
 
 ## Changelog
 
+- **v0.3.2** — Robust download backend fallback. `_download` now tries `axel
+  → aria2c → wget → wget --no-check-certificate → requests → requests verify=False`
+  in order, so a single broken TLS host (e.g. `ftp.ensemblgenomes.org` whose
+  cert is not valid for its own hostname) no longer aborts a resource — it
+  silently retries with the next backend. Also silenced axel/aria2c/wget
+  progress noise.
 - **v0.3.0** — CLI refactor: `build`→`pull`; new `refbox build` for arbitrary
   single-file/directory inputs (with auto bgzip / sort / bigBed); transcriptome
   auto-derivation via `gffread`; unit-tested + CI; `--include-disabled` flag;
