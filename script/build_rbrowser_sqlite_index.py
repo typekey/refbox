@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+"""Build a static SQLite search index for RBrowser from a GTF/GFF/GFF3 file.
+
+Standalone CLI wrapper around :mod:`refbox.sqlite_index`. It works whether or
+not ``refbox`` is pip-installed: if the package import fails it falls back to
+the ``src/`` tree next to this script.
+
+Example
+-------
+    python build_rbrowser_sqlite_index.py \
+        --input gencode.v45.annotation.gtf.gz \
+        --output hg38.gencode.v45.rbrowser.sqlite \
+        --source-name GENCODE --species human --genome hg38 \
+        --annotation-version v45 --force --verbose
+"""
+
+from __future__ import annotations
+
+import argparse
+import logging
+import sys
+from pathlib import Path
+
+
+def _load_module():
+    """Load ``refbox.sqlite_index`` — preferring an installed package, else
+    loading the self-contained module file directly (so the script has no
+    dependency on the rest of the package, which needs PyYAML/pysam)."""
+    try:
+        import refbox.sqlite_index as m  # type: ignore
+        return m
+    except Exception:
+        import importlib.util
+        path = Path(__file__).resolve().parent.parent / "src" / "refbox" / "sqlite_index.py"
+        spec = importlib.util.spec_from_file_location("refbox_sqlite_index", path)
+        m = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = m  # dataclasses needs the module registered
+        spec.loader.exec_module(m)  # type: ignore[union-attr]
+        return m
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(
+        description="Build a read-only SQLite search index from GTF/GFF3.")
+    ap.add_argument("--input", required=True, help="GTF/GFF/GFF3 (.gz ok)")
+    ap.add_argument("--output", default=None,
+                    help="output .sqlite path (default: <input>.rbrowser.sqlite)")
+    ap.add_argument("--source-name", default="", help="e.g. GENCODE, Ensembl")
+    ap.add_argument("--species", default="", help="e.g. human, mouse")
+    ap.add_argument("--genome", default="", help="e.g. hg38, GRCh38")
+    ap.add_argument("--annotation-version", default="", help="e.g. v45, 112")
+    ap.add_argument("--force", action="store_true", help="overwrite existing output")
+    ap.add_argument("--verbose", action="store_true", help="DEBUG logging")
+    args = ap.parse_args(argv)
+
+    logging.basicConfig(
+        level=logging.DEBUG if args.verbose else logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+
+    build_sqlite_index = _load_module().build_sqlite_index
+    out = build_sqlite_index(
+        Path(args.input),
+        Path(args.output) if args.output else None,
+        source_name=args.source_name, species=args.species, genome=args.genome,
+        annotation_version=args.annotation_version, force=args.force,
+        verbose=args.verbose,
+    )
+    print(f"OK: {out} ({out.stat().st_size / 1e6:.1f} MB)")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

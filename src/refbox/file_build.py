@@ -139,8 +139,25 @@ def build_transcriptome(
 
 # ── annotation (GTF / GFF3) ───────────────────────────────────────────────────
 
-def build_gxf(input_gxf: Path, output: Path | None = None) -> Path:
-    """Sort + bgzip + tabix a GTF/GFF3 file. Returns the ``.gz`` path."""
+def build_gxf(
+    input_gxf: Path,
+    output: Path | None = None,
+    *,
+    sqlite: bool = False,
+    sqlite_out: Path | None = None,
+    source_name: str = "",
+    species: str = "",
+    genome: str = "",
+    annotation_version: str = "",
+    force: bool = False,
+) -> Path:
+    """Sort + bgzip + tabix a GTF/GFF3 file. Returns the ``.gz`` path.
+
+    When ``sqlite=True`` a read-only SQLite search index is also built next to
+    the output (``<stem>.rbrowser.sqlite`` unless ``sqlite_out`` is given). The
+    index powers the browser's transcript/gene search; the tabix file still
+    serves positional range queries.
+    """
     ext = ".gtf"
     lower = input_gxf.name.lower().rstrip(".gz")
     if lower.endswith((".gff3", ".gff")):
@@ -173,6 +190,22 @@ def build_gxf(input_gxf: Path, output: Path | None = None) -> Path:
 
     bgzip_file(sorted_path, output, force=True)
     tabix(output, preset="gff", force=True)
+
+    if sqlite:
+        from .sqlite_index import build_sqlite_index
+        if sqlite_out is None:
+            base = output.name
+            for s in (".gz", ".gtf", ".gff3", ".gff", ".sorted"):
+                if base.endswith(s):
+                    base = base[: -len(s)]
+            sqlite_out = output.with_name(base + ".rbrowser.sqlite")
+        # Index from the original input (full attribute set), not the sorted
+        # plain temp which has already been removed below.
+        build_sqlite_index(
+            input_gxf, sqlite_out, source_name=source_name, species=species,
+            genome=genome, annotation_version=annotation_version, force=force,
+        )
+
     plain.unlink(missing_ok=True)
     if sorted_path != plain:
         sorted_path.unlink(missing_ok=True)

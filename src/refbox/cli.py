@@ -102,7 +102,19 @@ def _dispatch_build(args: argparse.Namespace) -> int:
         )
         return 0
 
+    sqlite_in = Path(args.sqlite) if args.sqlite else None
+
     annot = gtf or gff
+    # Standalone SQLite index build: `refbox build -sqlite ANNOT.gtf[.gz]`
+    if sqlite_in is not None:
+        from .sqlite_index import build_sqlite_index
+        build_sqlite_index(
+            sqlite_in, out_path, source_name=args.source_name or "",
+            species=args.species_name or "", genome=args.genome or "",
+            annotation_version=args.annotation_version or "",
+            force=args.force, verbose=args.verbose,
+        )
+        return 0
     if fa and annot:
         fb.build_transcriptome(fa, annot, out_path)
         return 0
@@ -110,7 +122,12 @@ def _dispatch_build(args: argparse.Namespace) -> int:
         fb.build_fa(fa, out_path)
         return 0
     if annot:
-        fb.build_gxf(annot, out_path)
+        fb.build_gxf(
+            annot, out_path, sqlite=args.with_sqlite,
+            source_name=args.source_name or "", species=args.species_name or "",
+            genome=args.genome or "", annotation_version=args.annotation_version or "",
+            force=args.force,
+        )
         return 0
     if bed:
         fb.build_bed(
@@ -184,10 +201,24 @@ def main(argv: list[str] | None = None) -> int:
     p_bd.add_argument("-gff", "--gff", help="GFF3 input")
     p_bd.add_argument("-bed", "--bed", help="BED input")
     p_bd.add_argument("-rmsk", "--rmsk", help="UCSC rmsk.txt[.gz] input")
+    p_bd.add_argument("-sqlite", "--sqlite", default=None,
+                      help="GTF/GFF3 input → build a standalone SQLite search index")
     p_bd.add_argument("-i", "--ingest", help="directory of user files to import")
     p_bd.add_argument("--assembly", default=None,
                       help="assembly identifier (folder name / chrom.sizes lookup)")
     p_bd.add_argument("--species", default=None, help="species name (-i only)")
+    p_bd.add_argument("--with-sqlite", action="store_true",
+                      help="for -gtf/-gff: also emit a SQLite search index "
+                           "alongside the sorted/bgzip/tabix outputs")
+    p_bd.add_argument("--source-name", default=None,
+                      help="annotation source label stored in SQLite metadata "
+                           "(e.g. GENCODE, Ensembl)")
+    p_bd.add_argument("--species-name", default=None,
+                      help="species label stored in SQLite metadata")
+    p_bd.add_argument("--genome", default=None,
+                      help="genome/assembly label stored in SQLite metadata (e.g. hg38)")
+    p_bd.add_argument("--annotation-version", default=None,
+                      help="annotation version stored in SQLite metadata (e.g. v45)")
     p_bd.add_argument("--chrom-sizes", default=None,
                       help="chrom.sizes file for bigBed conversion")
     p_bd.add_argument("--no-bigbed", action="store_true",

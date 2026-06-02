@@ -93,6 +93,15 @@ refbox build -fa  GENOME.fa [-o OUT.fa.gz]
 refbox build -gtf ANNOT.gtf [-o OUT.gtf.gz]
 refbox build -gff ANNOT.gff3 [-o OUT.gff3.gz]
 
+# …and also emit a static SQLite search index alongside the tabix output:
+refbox build -gtf ANNOT.gtf --with-sqlite \
+             --source-name GENCODE --genome hg38 --annotation-version v45
+
+# Standalone: GTF/GFF3 → read-only SQLite search index (no tabix/bgzip)
+refbox build -sqlite ANNOT.gtf.gz -o OUT.rbrowser.sqlite \
+             --source-name GENCODE --species human --genome hg38 \
+             --annotation-version v45 --force
+
 # Genome + annotation → transcriptome FASTA (via gffread) + faidx
 refbox build -fa GENOME.fa -gtf ANNOT.gtf -o transcriptome.fa.gz
 
@@ -122,6 +131,70 @@ refbox download --assembly GRCh38                  # raw files only
 refbox test     --assembly GRCh38                  # validate existing build/
 refbox test     --include-disabled                 # everything in the registry
 ```
+
+---
+
+## SQLite search index (for in-browser transcript/gene search)
+
+`tabix` answers *positional* range queries; it cannot answer "what is TP53?".
+For that, `refbox` can build a **standalone, read-only SQLite file** from a
+GTF/GFF3 that powers exact / prefix-autocomplete / fuzzy-substring / alias
+search. It is meant to be hosted as a static file and queried directly from the
+browser via **SQLite WASM + an HTTP Range VFS** — no backend service required.
+
+```bash
+# build it next to the tabix output (one command)
+refbox build -gtf gencode.v45.annotation.gtf.gz --with-sqlite \
+             --source-name GENCODE --species human --genome hg38 \
+             --annotation-version v45
+
+# or standalone, anywhere
+refbox build -sqlite gencode.v45.annotation.gtf.gz -o hg38.gencode.v45.rbrowser.sqlite \
+             --source-name GENCODE --genome hg38 --annotation-version v45 --force
+```
+
+The three helper scripts in [`script/`](script/) are dependency-free (Python
+standard library only — they load the self-contained `refbox.sqlite_index`
+module directly, so they run even without the rest of refbox installed):
+
+```bash
+python script/build_rbrowser_sqlite_index.py  --input ANNOT.gtf.gz --output idx.sqlite \
+        --source-name GENCODE --species human --genome hg38 --annotation-version v45 --force
+python script/inspect_rbrowser_sqlite_index.py --db idx.sqlite
+python script/test_rbrowser_sqlite_search.py   --db idx.sqlite \
+        --queries TP53 ENST00000269305 p53 BRCA1 MALAT1 ACTB --repeat 100 --limit 10
+```
+
+### What it indexes
+
+One `feature` row per **gene** and per **transcript**, with the full structure
+(exon starts/ends, CDS span, 5′/3′ UTR spans, biotype, source), a `search_text`
+blob, and a `payload_json` for the browser to render without extra joins. Every
+searchable synonym becomes an `alias` row: gene/transcript names & IDs, the
+**versionless** Ensembl IDs (`ENST00000269305.9` → `ENST00000269305`), HAVANA /
+CCDS / HGNC / protein IDs, GFF3 `Alias` / `Dbxref` (RefSeq) / `gene_synonym`.
+
+| Table | Purpose |
+|---|---|
+| `feature` | gene + transcript records (1-based inclusive coords; `chrom_start0/end0` give the 0-based half-open span) |
+| `alias` | `(feature_id, alias, alias_norm, alias_type, source)` — `alias_norm` is lowercased, version-stripped, separator-free |
+| `metadata` | `key/value` provenance (source, species, genome, coord convention, counts, SQLite/FTS capabilities) |
+| `feature_fts` | FTS5 prefix/autocomplete (`prefix='2 3 … 10'`) |
+| `feature_trigram` | FTS5 `trigram` tokenizer for substring/fuzzy search (graceful LIKE fallback if unavailable) |
+
+### Search ranking (mirrored by `test_rbrowser_sqlite_search.py`)
+
+exact `transcript_id` → `transcript_name` → `gene_name` → `gene_id` → alias
+exact → FTS prefix → trigram substring → LIKE fallback. The browser should run
+the same tiers (the Python `refbox.sqlite_index.search()` is the reference
+implementation). Exact-match columns are indexed `COLLATE NOCASE` so lookups are
+index seeks, not table scans.
+
+### Coordinate convention
+
+`start` / `end` and all `*_start` / `*_end` columns are **1-based inclusive**
+(GTF/GFF convention) for display; `chrom_start0` / `chrom_end0` add the
+**0-based half-open** span for rendering. This is recorded in `metadata`.
 
 ---
 
@@ -165,6 +238,17 @@ from refbox.test     import test_targets
 from refbox          import file_build as fb     # single-file builders
 from refbox.ingest   import ingest_directory     # directory ingest
 from refbox.report   import build_report         # Markdown status report
+from refbox.sqlite_index import (                # static SQLite search index
+    build_sqlite_index, search, inspect, open_readonly, normalize)
+```
+
+```python
+# Build a search index and query it the way the browser will.
+db = build_sqlite_index("gencode.v45.annotation.gtf.gz", "idx.sqlite",
+                        source_name="GENCODE", genome="hg38", force=True)
+con = open_readonly(db)
+for hit in search(con, "TP53", limit=10):
+    print(hit["matched_field"], hit["gene_name"], hit["transcript_id"])
 ```
 
 ---
@@ -296,6 +380,14 @@ git push origin v0.3.0
 
 ## Changelog
 
+- **v0.5.0** — Static **SQLite search index** for in-browser transcript/gene
+  search. New `refbox.sqlite_index` module + `refbox build -sqlite` /
+  `refbox build -gtf … --with-sqlite`; three stdlib-only helper scripts
+  (`build_/inspect_/test_rbrowser_sqlite_index.py`). Emits a read-only
+  `*.rbrowser.sqlite` (gene + transcript records, alias table, FTS5 prefix +
+  trigram tables, metadata) suitable for SQLite-WASM + HTTP Range hosting.
+  Ranked exact / prefix / fuzzy / alias search with version-insensitive Ensembl
+  IDs; exact-match columns indexed `COLLATE NOCASE` for index-seek lookups.
 - **v0.3.2** — Robust download backend fallback. `_download` now tries `axel
   → aria2c → wget → wget --no-check-certificate → requests → requests verify=False`
   in order, so a single broken TLS host (e.g. `ftp.ensemblgenomes.org` whose
