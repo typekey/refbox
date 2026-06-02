@@ -380,6 +380,13 @@ git push origin v0.3.0
 
 ## Changelog
 
+- **v0.5.1** — SQLite index size optimizations (no capability loss): `feature_fts`
+  built with `detail=none, columnsize=0` (−~84%); `feature.search_text` no longer
+  stored (lives only in the FTS index); `payload_json` slimmed to the alias list
+  (other fields reconstructed from columns); covering `idx_alias_norm(alias_norm,
+  feature_id)` for index-only alias lookups. `feature_trigram` stays `detail=full`
+  (required for multi-trigram substring *phrase* queries). Net: GENCODE v44 index
+  ~745 MB → ~430 MB.
 - **v0.5.0** — Static **SQLite search index** for in-browser transcript/gene
   search. New `refbox.sqlite_index` module + `refbox build -sqlite` /
   `refbox build -gtf … --with-sqlite`; three stdlib-only helper scripts

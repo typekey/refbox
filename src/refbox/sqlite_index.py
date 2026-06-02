@@ -457,8 +457,9 @@ CREATE TABLE feature (
     utr5_end      INTEGER,
     utr3_start    INTEGER,
     utr3_end      INTEGER,
-    search_text   TEXT,
-    payload_json  TEXT
+    search_text   TEXT,      -- always NULL: the text lives in the FTS indexes
+                             -- only (kept as a column for schema stability)
+    payload_json  TEXT       -- lean: {"aliases":[...]} (other fields are columns)
 );
 
 CREATE TABLE alias (
@@ -476,17 +477,26 @@ CREATE TABLE metadata (
 );
 """
 
+# feature_fts only runs single-token prefix queries (``"tok"*``), so
+# ``detail=none, columnsize=0`` is safe and shrinks it ~84% (measured 153→24 MB
+# on GENCODE v44): we never use phrase / proximity / column-filtered / highlight
+# queries, which is the only thing detail data is needed for.
 _FTS_PREFIX = """
 CREATE VIRTUAL TABLE feature_fts USING fts5(
     display_name, gene_id, gene_name, transcript_id, transcript_name,
     aliases, search_text,
-    content='', tokenize='unicode61', prefix='2 3 4 5 6 7 8 9 10'
+    content='', tokenize='unicode61', prefix='2 3 4 5 6 7 8 9 10',
+    detail=none, columnsize=0
 );
 """
 
+# feature_trigram MUST keep detail=full: a substring query longer than 3 chars
+# becomes a *phrase* of consecutive trigram tokens, and FTS5 only supports phrase
+# queries with detail=full. (detail=none would silently break e.g. "0000026930".)
+# columnsize=0 is still safe (single column) and trims a little.
 _FTS_TRIGRAM = """
 CREATE VIRTUAL TABLE feature_trigram USING fts5(
-    search_text, content='', tokenize='trigram'
+    search_text, content='', tokenize='trigram', columnsize=0
 );
 """
 
@@ -499,7 +509,11 @@ _INDEXES = [
     "CREATE INDEX idx_feature_transcript_id  ON feature(transcript_id COLLATE NOCASE)",
     "CREATE INDEX idx_feature_transcript_name ON feature(transcript_name COLLATE NOCASE)",
     "CREATE INDEX idx_feature_chrom_start_end ON feature(chrom, start, end)",
-    "CREATE INDEX idx_alias_norm             ON alias(alias_norm)",
+    # Covering index: the hot alias_exact lookup is
+    # ``SELECT feature_id FROM alias WHERE alias_norm = ?`` — including
+    # feature_id makes it index-only (no table row fetch), which over an HTTP
+    # Range VFS means one fewer page request per query.
+    "CREATE INDEX idx_alias_norm             ON alias(alias_norm, feature_id)",
     "CREATE INDEX idx_alias_feature          ON alias(feature_id)",
 ]
 
@@ -531,12 +545,10 @@ def _gene_row(g: _Gene) -> tuple:
         g.gene_id, strip_version(g.gene_id), g.gene_name, g.biotype,
         *g.aliases.keys(),
     ]))
-    payload = {
-        "feature_type": "gene", "gene_id": g.gene_id, "gene_name": g.gene_name,
-        "chrom": g.chrom, "start": start, "end": end, "strand": g.strand,
-        "biotype": g.biotype, "source": g.source,
-        "aliases": sorted(g.aliases.keys()),
-    }
+    # Lean payload: only what the typed columns don't already carry (the alias
+    # list). Everything else the browser reconstructs from the SELECTed columns,
+    # which avoids ~130 MB of column/JSON duplication.
+    payload = {"aliases": sorted(g.aliases.keys())}
     return (
         "gene", g.gene_id, g.gene_name, None, None, g.chrom, start, end,
         (start - 1) if start else None, end, g.strand, g.biotype, g.source,
@@ -560,17 +572,9 @@ def _tx_row(t: _Tx) -> tuple:
         gene_id, strip_version(gene_id), t.gene_name, t.biotype,
         *t.aliases.keys(),
     ]))
-    payload = {
-        "feature_type": "transcript", "gene_id": gene_id,
-        "gene_name": t.gene_name, "transcript_id": t.transcript_id,
-        "transcript_name": t.transcript_name, "chrom": t.chrom,
-        "start": start, "end": end, "strand": t.strand, "biotype": t.biotype,
-        "source": t.source, "exon_count": len(exons),
-        "cds_start": cds_start, "cds_end": cds_end,
-        "utr5_start": utr5_start, "utr5_end": utr5_end,
-        "utr3_start": utr3_start, "utr3_end": utr3_end,
-        "aliases": sorted(t.aliases.keys()),
-    }
+    # Lean payload: only the alias list (not in any column); all structural
+    # fields are reconstructed by the browser from the SELECTed columns.
+    payload = {"aliases": sorted(t.aliases.keys())}
     return (
         t.feature_type, gene_id, t.gene_name, t.transcript_id, t.transcript_name,
         t.chrom, start, end, (start - 1) if start else None, end, t.strand,
@@ -676,7 +680,9 @@ def build_sqlite_index(
     for g in gene_items:
         fid += 1
         row = _gene_row(g)
-        cur.execute(insert_feature, (fid, *row))
+        # Null out feature.search_text in the table — it is fully redundant with
+        # the FTS index copies and never read back at query time (saves ~52 MB).
+        cur.execute(insert_feature, (fid, *row[:22], None, row[23]))
         if has_fts5:
             cur.execute(insert_fts, (fid, g.gene_name or g.gene_id, g.gene_id,
                                      g.gene_name, None, None,
@@ -692,7 +698,7 @@ def build_sqlite_index(
     for t in tx_items:
         fid += 1
         row = _tx_row(t)
-        cur.execute(insert_feature, (fid, *row))
+        cur.execute(insert_feature, (fid, *row[:22], None, row[23]))  # null search_text
         if has_fts5:
             display = t.transcript_name or t.transcript_id
             cur.execute(insert_fts, (fid, display, row[1], t.gene_name,
@@ -952,7 +958,9 @@ def inspect(db_path: Path) -> dict:
     info["n_aliases"] = scalar("SELECT COUNT(*) FROM alias")
     info["has_fts"] = _table_exists(con, "feature_fts")
     info["has_trigram"] = _table_exists(con, "feature_trigram")
-    info["n_fts"] = scalar("SELECT COUNT(*) FROM feature_fts") if info["has_fts"] else 0
+    # feature_fts is contentless + detail=none (does not support COUNT scans);
+    # it is populated 1:1 with feature rows, so report the feature count.
+    info["n_fts"] = info["n_features"] if info["has_fts"] else 0
     info["metadata"] = dict(cur.execute("SELECT key, value FROM metadata").fetchall())
     info["examples"] = [
         _row_to_dict(r) for r in cur.execute(
