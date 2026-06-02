@@ -49,6 +49,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--species", default="", help="e.g. human, mouse")
     ap.add_argument("--genome", default="", help="e.g. hg38, GRCh38")
     ap.add_argument("--annotation-version", default="", help="e.g. v45, 112")
+    ap.add_argument("--synonyms", default=None,
+                    help="HGNC-style TSV (symbol/alias_symbol/prev_symbol/"
+                         "ensembl_gene_id) → injected as gene_synonym aliases "
+                         "(e.g. OCT4 → POU5F1)")
     ap.add_argument("--force", action="store_true", help="overwrite existing output")
     ap.add_argument("--verbose", action="store_true", help="DEBUG logging")
     args = ap.parse_args(argv)
@@ -62,8 +66,8 @@ def main(argv: list[str] | None = None) -> int:
         Path(args.input),
         Path(args.output) if args.output else None,
         source_name=args.source_name, species=args.species, genome=args.genome,
-        annotation_version=args.annotation_version, force=args.force,
-        verbose=args.verbose,
+        annotation_version=args.annotation_version, synonyms=args.synonyms,
+        force=args.force, verbose=args.verbose,
     )
     print(f"OK: {out} ({out.stat().st_size / 1e6:.1f} MB)")
     return 0

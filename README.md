@@ -151,7 +151,15 @@ refbox build -gtf gencode.v45.annotation.gtf.gz --with-sqlite \
 # or standalone, anywhere
 refbox build -sqlite gencode.v45.annotation.gtf.gz -o hg38.gencode.v45.rbrowser.sqlite \
              --source-name GENCODE --genome hg38 --annotation-version v45 --force
+
+# with HGNC synonyms so common names resolve (OCT4 -> POU5F1, OTF3 -> POU5F1):
+refbox build -sqlite gencode.v45.annotation.gtf.gz -o OUT.rbrowser.sqlite \
+             --synonyms hgnc_complete_set.txt --force
 ```
+
+> GENCODE/Ensembl annotations do **not** carry common gene synonyms (`OCT4`,
+> `p53`, `Nanog`…). Pass `--synonyms` with an HGNC `hgnc_complete_set.txt` to
+> inject `alias_symbol` / `prev_symbol` as searchable `gene_synonym` aliases.
 
 The three helper scripts in [`script/`](script/) are dependency-free (Python
 standard library only — they load the self-contained `refbox.sqlite_index`
@@ -380,6 +388,11 @@ git push origin v0.3.0
 
 ## Changelog
 
+- **v0.5.2** — Optional `--synonyms` feed for the SQLite index: an HGNC-style
+  TSV (`symbol` / `alias_symbol` / `prev_symbol` / `ensembl_gene_id`) is injected
+  as `gene_synonym` aliases (matched by Ensembl ID, fallback by symbol), so common
+  names that GENCODE/Ensembl omit resolve as exact alias hits — e.g. `OCT4` →
+  POU5F1, `OTF3` → POU5F1. `refbox build -sqlite … --synonyms hgnc_complete_set.txt`.
 - **v0.5.1** — SQLite index size optimizations (no capability loss): `feature_fts`
   built with `detail=none, columnsize=0` (−~84%); `feature.search_text` no longer
   stored (lives only in the FTS index); `payload_json` slimmed to the alias list

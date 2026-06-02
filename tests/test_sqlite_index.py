@@ -250,6 +250,53 @@ def test_gff3_aliases_and_utr(tmp_path: Path):
     con.close()
 
 
+# ── synonym enrichment (HGNC) ─────────────────────────────────────────────────
+
+POU5F1_GTF = (
+    'chr6\tHAVANA\tgene\t31164337\t31180731\t.\t-\t.\t'
+    'gene_id "ENSG00000204531.21"; gene_type "protein_coding"; gene_name "POU5F1";\n'
+    'chr6\tHAVANA\ttranscript\t31164337\t31170682\t.\t-\t.\t'
+    'gene_id "ENSG00000204531.21"; transcript_id "ENST00000259915.13"; '
+    'gene_name "POU5F1"; transcript_name "POU5F1-201";\n'
+    'chr6\tHAVANA\texon\t31164337\t31170682\t.\t-\t.\t'
+    'gene_id "ENSG00000204531.21"; transcript_id "ENST00000259915.13";\n'
+)
+HGNC_TSV = (
+    "symbol\talias_symbol\tprev_symbol\tensembl_gene_id\n"
+    'POU5F1\t"OCT3|Oct4|OCT-4"\tOTF3\tENSG00000204531\n'
+)
+
+
+@pytest.mark.parametrize("query", ["oct4", "OCT4", "OCT-4", "OTF3", "oct3"])
+def test_synonym_injection(tmp_path: Path, query: str):
+    src = tmp_path / "annot.gtf"
+    src.write_text(POU5F1_GTF)
+    syn = tmp_path / "hgnc.tsv"
+    syn.write_text(HGNC_TSV)
+    out = tmp_path / "idx.sqlite"
+    si.build_sqlite_index(src, out, synonyms=syn, force=True)
+    # metadata records the injection
+    assert int(si.inspect(out)["metadata"]["n_synonyms_injected"]) == 4
+    con = si.open_readonly(out)
+    res = si.search(con, query, limit=5)
+    con.close()
+    assert res, f"{query!r} did not resolve"
+    assert res[0]["gene_name"] == "POU5F1"
+    assert res[0]["matched_field"] == "alias_exact"
+
+
+def test_no_synonyms_no_oct4(tmp_path: Path):
+    """Without the synonym feed, OCT4 is absent (it is not in the annotation)."""
+    src = tmp_path / "annot.gtf"
+    src.write_text(POU5F1_GTF)
+    out = tmp_path / "idx.sqlite"
+    si.build_sqlite_index(src, out, force=True)
+    con = si.open_readonly(out)
+    assert si.search(con, "OCT4", limit=5) == []
+    assert si.search(con, "POU5F1", limit=5)        # the real symbol still works
+    con.close()
+
+
 # ── gzip input ────────────────────────────────────────────────────────────────
 
 def test_gzip_input(tmp_path: Path):

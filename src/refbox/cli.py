@@ -112,7 +112,7 @@ def _dispatch_build(args: argparse.Namespace) -> int:
             sqlite_in, out_path, source_name=args.source_name or "",
             species=args.species_name or "", genome=args.genome or "",
             annotation_version=args.annotation_version or "",
-            force=args.force, verbose=args.verbose,
+            synonyms=args.synonyms_file, force=args.force, verbose=args.verbose,
         )
         return 0
     if fa and annot:
@@ -126,7 +126,7 @@ def _dispatch_build(args: argparse.Namespace) -> int:
             annot, out_path, sqlite=args.with_sqlite,
             source_name=args.source_name or "", species=args.species_name or "",
             genome=args.genome or "", annotation_version=args.annotation_version or "",
-            force=args.force,
+            synonyms=args.synonyms_file, force=args.force,
         )
         return 0
     if bed:
@@ -219,6 +219,10 @@ def main(argv: list[str] | None = None) -> int:
                       help="genome/assembly label stored in SQLite metadata (e.g. hg38)")
     p_bd.add_argument("--annotation-version", default=None,
                       help="annotation version stored in SQLite metadata (e.g. v45)")
+    p_bd.add_argument("--synonyms-file", "--synonyms", default=None, dest="synonyms_file",
+                      help="HGNC-style TSV (symbol/alias_symbol/prev_symbol/"
+                           "ensembl_gene_id) to inject as gene_synonym aliases "
+                           "(SQLite builds only)")
     p_bd.add_argument("--chrom-sizes", default=None,
                       help="chrom.sizes file for bigBed conversion")
     p_bd.add_argument("--no-bigbed", action="store_true",

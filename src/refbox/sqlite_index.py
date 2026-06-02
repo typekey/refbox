@@ -197,6 +197,81 @@ def _maybe_tqdm(total_bytes: int):
         return (lambda _n: None), (lambda: None)
 
 
+# ── external synonym enrichment (HGNC etc.) ───────────────────────────────────
+
+def load_synonyms(path: Path) -> tuple[dict[str, set[str]], dict[str, set[str]]]:
+    """Load a gene-synonym table → ``(by_ensembl_id, by_symbol_upper)`` maps.
+
+    Designed for the HGNC ``hgnc_complete_set.txt`` TSV (columns ``symbol``,
+    ``alias_symbol``, ``prev_symbol``, ``ensembl_gene_id``; multi-value fields
+    are ``|``-separated and may be double-quoted), but works with any TSV that
+    has a ``symbol`` column plus any of those. Synonyms let common names that
+    annotation files omit — ``OCT4`` → ``POU5F1``, ``p53`` → ``TP53`` — resolve
+    as exact alias hits.
+    """
+    by_ensembl: dict[str, set[str]] = {}
+    by_symbol: dict[str, set[str]] = {}
+    with _open_text(path) as fh:
+        header = fh.readline().rstrip("\n").split("\t")
+        idx = {name.strip(): i for i, name in enumerate(header)}
+        c_sym = idx.get("symbol")
+        c_alias = idx.get("alias_symbol")
+        c_prev = idx.get("prev_symbol")
+        c_ens = idx.get("ensembl_gene_id")
+        if c_sym is None:
+            raise ValueError(
+                f"synonyms file {path} has no 'symbol' column (header={header[:5]}…)")
+
+        def cell(fields: list[str], i: int | None) -> str:
+            if i is None or i >= len(fields):
+                return ""
+            return fields[i].strip().strip('"')
+
+        for line in fh:
+            f = line.rstrip("\n").split("\t")
+            sym = cell(f, c_sym)
+            syns: set[str] = set()
+            for col in (c_alias, c_prev):
+                val = cell(f, col)
+                if val:
+                    for s in val.split("|"):
+                        s = s.strip()
+                        if s and s != sym:
+                            syns.add(s)
+            if not syns:
+                continue
+            ens = cell(f, c_ens)
+            if ens:
+                by_ensembl[strip_version(ens)] = syns
+            if sym:
+                by_symbol[sym.upper()] = syns
+    return by_ensembl, by_symbol
+
+
+def enrich_with_synonyms(
+    genes: dict[str, "_Gene"], path: Path,
+) -> int:
+    """Inject external synonyms as ``gene_synonym`` aliases on matching genes.
+
+    Matched first by (versionless) Ensembl gene ID, else by gene symbol. Returns
+    the number of synonym aliases added.
+    """
+    by_ensembl, by_symbol = load_synonyms(path)
+    added = 0
+    for g in genes.values():
+        syns = by_ensembl.get(strip_version(g.gene_id))
+        if syns is None and g.gene_name:
+            syns = by_symbol.get(g.gene_name.upper())
+        if not syns:
+            continue
+        for s in syns:
+            if s not in g.aliases:
+                g.aliases[s] = "gene_synonym"
+                added += 1
+    log.info("synonyms: injected %d aliases from %s", added, path.name)
+    return added
+
+
 # ── streaming parser ──────────────────────────────────────────────────────────
 
 def parse_annotation(
@@ -602,12 +677,15 @@ def build_sqlite_index(
     species: str = "",
     genome: str = "",
     annotation_version: str = "",
+    synonyms: Path | str | None = None,
     force: bool = False,
     verbose: bool = False,
 ) -> Path:
     """Build the read-only SQLite search index. Returns the output path.
 
     ``output`` defaults to ``<input-stem>.rbrowser.sqlite`` next to the input.
+    ``synonyms`` optionally points at an HGNC-style TSV whose alias/prev symbols
+    are injected as ``gene_synonym`` aliases (so ``OCT4`` resolves to POU5F1).
     """
     input_path = Path(input_path)
     if output is None:
@@ -628,6 +706,10 @@ def build_sqlite_index(
     t0 = time.time()
     genes, transcripts, is_gff3 = parse_annotation(input_path, verbose=verbose)
     t_parse = time.time() - t0
+
+    n_synonyms = 0
+    if synonyms:
+        n_synonyms = enrich_with_synonyms(genes, Path(synonyms))
 
     # Build into a temp file then atomically replace, so a crash can't leave a
     # half-written index in place.
@@ -723,6 +805,8 @@ def build_sqlite_index(
         "annotation_version": annotation_version,
         "input_file": input_path.name,
         "input_format": "GFF3" if is_gff3 else "GTF",
+        "synonyms_file": Path(synonyms).name if synonyms else "",
+        "n_synonyms_injected": str(n_synonyms),
         "coord_convention": (
             "start/end and *_start/*_end are 1-based inclusive; "
             "chrom_start0/chrom_end0 are 0-based half-open"),
