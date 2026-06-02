@@ -400,6 +400,14 @@ git push origin v0.3.0
 
 ## Changelog
 
+- **v0.5.5** — `--fuzzy-scope names` (new default): the trigram (substring) index
+  is built over gene/transcript **names + synonyms only**, not IDs. IDs
+  (gene_id / transcript_id / RNAcentral URS) are searched exactly or by prefix —
+  never by fuzzy substring — so the trigram shrinks ~6× (measured 371 → 60 MB on
+  GENCODE v44 + RNAcentral) and the pathological numeric-ID-substring query (e.g.
+  `000003351` scanning every ID) disappears. Name/synonym substring search
+  (`p53`, `malat`) is unchanged. Pass `--fuzzy-scope all` for the old
+  IDs-included behavior.
 - **v0.5.4** — SQLite search: unified exact lookup + leaner `alias` table.
   Exact matching (transcript_id / transcript_name / gene_name / gene_id /
   synonym / RNAcentral ID / …) is now a **single index-only seek** into

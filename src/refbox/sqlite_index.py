@@ -72,6 +72,22 @@ _GTF_ATTR = re.compile(r'(\w+)\s+"([^"]*)"')
 _ENSEMBL_VERSION = re.compile(r"\.\d+$")
 _SEPARATORS = re.compile(r"[\s_.\-]+")
 
+# alias types that are *names* (worth substring/fuzzy matching), as opposed to
+# IDs/accessions (gene_id, transcript_id, rnacentral_id/_db, havana, ccds,
+# protein_id, hgnc, dbxref, refseq) which users search exactly or by prefix, not
+# by fuzzy substring. The trigram (substring) index is built over names only
+# when fuzzy_scope='names' — this both shrinks it dramatically and removes the
+# pathological "numeric ID substring" query (e.g. 000003351 scanning all IDs).
+_NAME_LIKE_ALIAS = {"gene_name", "transcript_name", "gene_synonym", "name", "alias"}
+
+
+def _fuzzy_text(names: "list[str]", aliases: dict[str, str]) -> str:
+    """Substring-search corpus for one feature: its name columns + name-like
+    aliases (synonyms / Name / Alias), but NOT IDs."""
+    parts = [x for x in names if x]
+    parts += [a for a, ty in aliases.items() if ty in _NAME_LIKE_ALIAS]
+    return " ".join(parts)
+
 
 # ── normalization ─────────────────────────────────────────────────────────────
 
@@ -776,6 +792,7 @@ def build_sqlite_index(
     annotation_version: str = "",
     synonyms: Path | str | None = None,
     rnacentral: Path | str | None = None,
+    fuzzy_scope: str = "names",
     force: bool = False,
     verbose: bool = False,
 ) -> Path:
@@ -787,7 +804,13 @@ def build_sqlite_index(
     ``rnacentral`` optionally points at an RNAcentral genome-coordinates GFF3
     (use the chromosome-normalized one) whose ncRNA transcripts are merged in as
     additional searchable records.
+    ``fuzzy_scope`` controls the trigram (substring) corpus: ``'names'`` (default)
+    indexes only gene/transcript names + synonyms — IDs are exact/prefix-only, so
+    the trigram is ~6× smaller and the pathological numeric-ID-substring query
+    disappears; ``'all'`` indexes the full search_text (IDs included) like before.
     """
+    if fuzzy_scope not in ("names", "all"):
+        raise ValueError("fuzzy_scope must be 'names' or 'all'")
     input_path = Path(input_path)
     if output is None:
         stem = input_path.name
@@ -897,7 +920,10 @@ def build_sqlite_index(
                                      g.gene_name, None, None,
                                      " ".join(g.aliases.keys()), row[22]))
             if has_trigram:
-                cur.execute(insert_trgm, (fid, row[22]))
+                trg = (row[22] if fuzzy_scope == "all"
+                       else _fuzzy_text([g.gene_name], g.aliases))
+                if trg:
+                    cur.execute(insert_trgm, (fid, trg))
         for arow in _alias_rows(fid, g.aliases):
             cur.execute(insert_alias, arow)
             n_alias += 1
@@ -913,7 +939,10 @@ def build_sqlite_index(
                                      t.transcript_id, t.transcript_name,
                                      " ".join(t.aliases.keys()), row[22]))
             if has_trigram:
-                cur.execute(insert_trgm, (fid, row[22]))
+                trg = (row[22] if fuzzy_scope == "all"
+                       else _fuzzy_text([t.gene_name, t.transcript_name], t.aliases))
+                if trg:
+                    cur.execute(insert_trgm, (fid, trg))
         for arow in _alias_rows(fid, t.aliases):
             cur.execute(insert_alias, arow)
             n_alias += 1
@@ -942,6 +971,7 @@ def build_sqlite_index(
         "n_aliases": str(n_alias),
         "fts5": "1" if has_fts5 else "0",
         "trigram": "1" if has_trigram else "0",
+        "fuzzy_scope": fuzzy_scope,
         "sqlite_version": sqlite3.sqlite_version,
         "build_seconds_parse": f"{t_parse:.2f}",
     }
@@ -1110,8 +1140,12 @@ def search(
             except sqlite3.OperationalError:
                 pass
 
-    # Tier 7: trigram substring search (if present).
-    if _table_exists(con, "feature_trigram") and len(query) >= 3:
+    # Tier 7: trigram substring search (if present). Skip it for queries with no
+    # letter — the trigram holds only names/synonyms (never IDs), so a pure
+    # digit/symbol fragment like "000003351" can never match a name; running it
+    # would just scan postings for nothing (the old pathological case).
+    if (_table_exists(con, "feature_trigram") and len(query) >= 3
+            and any(c.isalpha() for c in query)):
         try:
             rows = cur.execute(
                 f"SELECT {_SELECT} FROM feature WHERE id IN "

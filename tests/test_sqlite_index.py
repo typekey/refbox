@@ -200,7 +200,7 @@ def test_anti_patterns_do_scan(big_db: Path):
     ("ENSG00000141510", "gene_id_exact", None),
     ("CCDS11118.1", "alias_exact", "ENST00000269305.9"),
     ("TP5", "prefix", None),               # autocomplete prefix
-    ("0000026930", "trigram", "ENST00000269305.9"),  # substring of the ID digits
+    ("p53", "trigram", None),              # substring of the NAME TP53 (names-only fuzzy)
 ])
 def test_search_tiers(gtf_db: Path, query, expect_field, expect_tid):
     con = si.open_readonly(gtf_db)
@@ -210,6 +210,39 @@ def test_search_tiers(gtf_db: Path, query, expect_field, expect_tid):
     assert res[0]["matched_field"] == expect_field
     if expect_tid is not None:
         assert any(r["transcript_id"] == expect_tid for r in res)
+
+
+def test_id_substring_not_fuzzy(gtf_db: Path):
+    """fuzzy_scope='names' (default): an interior ID substring must NOT match via
+    trigram — IDs are exact/prefix only. (Full ID & versionless still resolve.)"""
+    con = si.open_readonly(gtf_db)
+    assert si.search(con, "0000026930", limit=10) == []      # mid-ID digits → no hit
+    assert si.search(con, "ENST00000269305", limit=5)        # full/versionless still works
+    con.close()
+
+
+def test_fuzzy_scope_corpus(tmp_path: Path):
+    """The trigram corpus excludes IDs under 'names' (default) and includes them
+    under 'all'. Checked directly on feature_trigram (search() additionally skips
+    the trigram tier for letter-less queries, so verify the index, not search)."""
+    src = tmp_path / "a.gtf"; src.write_text(GTF)
+    out_names = tmp_path / "names.sqlite"
+    out_all = tmp_path / "all.sqlite"
+    si.build_sqlite_index(src, out_names, force=True)               # default 'names'
+    si.build_sqlite_index(src, out_all, fuzzy_scope="all", force=True)
+
+    def trg_hits(db, q):
+        c = sqlite3.connect(db)
+        n = c.execute("SELECT COUNT(*) FROM feature_trigram "
+                      "WHERE feature_trigram MATCH ?", (f'"{q}"',)).fetchone()[0]
+        c.close()
+        return n
+
+    # interior ID digits: present only in 'all'
+    assert trg_hits(out_all, "0000026930") > 0
+    assert trg_hits(out_names, "0000026930") == 0
+    # a name substring: present in both
+    assert trg_hits(out_names, "p53") > 0 and trg_hits(out_all, "p53") > 0
 
 
 def test_search_empty(gtf_db: Path):

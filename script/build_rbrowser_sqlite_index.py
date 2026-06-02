@@ -56,6 +56,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--rnacentral", default=None,
                     help="RNAcentral genome-coordinates GFF3 (use the chrom-"
                          "normalized one) → merged in as ncRNA records")
+    ap.add_argument("--fuzzy-scope", choices=["names", "all"], default="names",
+                    help="trigram substring corpus: 'names' (default; gene/"
+                         "transcript names + synonyms only, IDs excluded — much "
+                         "smaller/faster) or 'all' (include IDs)")
     ap.add_argument("--force", action="store_true", help="overwrite existing output")
     ap.add_argument("--verbose", action="store_true", help="DEBUG logging")
     args = ap.parse_args(argv)
@@ -70,7 +74,8 @@ def main(argv: list[str] | None = None) -> int:
         Path(args.output) if args.output else None,
         source_name=args.source_name, species=args.species, genome=args.genome,
         annotation_version=args.annotation_version, synonyms=args.synonyms,
-        rnacentral=args.rnacentral, force=args.force, verbose=args.verbose,
+        rnacentral=args.rnacentral, fuzzy_scope=args.fuzzy_scope,
+        force=args.force, verbose=args.verbose,
     )
     print(f"OK: {out} ({out.stat().st_size / 1e6:.1f} MB)")
     return 0

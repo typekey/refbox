@@ -113,7 +113,7 @@ def _dispatch_build(args: argparse.Namespace) -> int:
             species=args.species_name or "", genome=args.genome or "",
             annotation_version=args.annotation_version or "",
             synonyms=args.synonyms_file, rnacentral=args.rnacentral,
-            force=args.force, verbose=args.verbose,
+            fuzzy_scope=args.fuzzy_scope, force=args.force, verbose=args.verbose,
         )
         return 0
     if fa and annot:
@@ -127,7 +127,8 @@ def _dispatch_build(args: argparse.Namespace) -> int:
             annot, out_path, sqlite=args.with_sqlite,
             source_name=args.source_name or "", species=args.species_name or "",
             genome=args.genome or "", annotation_version=args.annotation_version or "",
-            synonyms=args.synonyms_file, rnacentral=args.rnacentral, force=args.force,
+            synonyms=args.synonyms_file, rnacentral=args.rnacentral,
+            fuzzy_scope=args.fuzzy_scope, force=args.force,
         )
         return 0
     if bed:
@@ -228,6 +229,9 @@ def main(argv: list[str] | None = None) -> int:
                       help="RNAcentral genome-coordinates GFF3 (use the "
                            "chrom-normalized one) to merge into the SQLite index "
                            "(SQLite builds only)")
+    p_bd.add_argument("--fuzzy-scope", choices=["names", "all"], default="names",
+                      help="SQLite trigram corpus: 'names' (default; names + "
+                           "synonyms only, IDs excluded) or 'all' (include IDs)")
     p_bd.add_argument("--chrom-sizes", default=None,
                       help="chrom.sizes file for bigBed conversion")
     p_bd.add_argument("--no-bigbed", action="store_true",
