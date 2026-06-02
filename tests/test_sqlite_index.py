@@ -339,6 +339,29 @@ def test_rnacentral_merge(tmp_path: Path):
     con.close()
 
 
+def test_rnacentral_chrom_harmonization(tmp_path: Path):
+    """RNAcentral Ensembl-style chroms ('1') are remapped to the main
+    annotation's 'chr1' convention so coordinates display consistently."""
+    src = tmp_path / "annot.gtf"
+    src.write_text(GTF)   # chr17 / chr11 / chr2 — chr-prefixed
+    rna = tmp_path / "rnacentral.gff3"
+    rna.write_text(
+        "##gff-version 3\n"
+        "1\tRNAcentral\ttranscript\t100\t200\t.\t+\t.\t"
+        "Name=URS0000ABCDEF_9606;type=lncRNA;ID=URS0000ABCDEF_9606.1\n"
+        "MT\tRNAcentral\ttranscript\t5\t60\t.\t+\t.\t"
+        "Name=URS0000FFFFFF_9606;type=tRNA;ID=URS0000FFFFFF_9606.1\n"
+    )
+    out = tmp_path / "idx.sqlite"
+    si.build_sqlite_index(src, out, rnacentral=rna, force=True)
+    con = sqlite3.connect(out)
+    chroms = dict(con.execute(
+        "SELECT transcript_id, chrom FROM feature WHERE source='RNAcentral'"))
+    con.close()
+    assert chroms["URS0000ABCDEF_9606.1"] == "chr1"   # 1 -> chr1
+    assert chroms["URS0000FFFFFF_9606.1"] == "chrM"    # MT -> chrM
+
+
 # ── gzip input ────────────────────────────────────────────────────────────────
 
 def test_gzip_input(tmp_path: Path):

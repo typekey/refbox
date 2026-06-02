@@ -349,6 +349,31 @@ def parse_rnacentral(path: Path, *, verbose: bool = False) -> dict[str, "_Tx"]:
     return txs
 
 
+def _harmonize_chroms(rna: dict[str, "_Tx"], main_chroms: set[str]) -> None:
+    """Rewrite RNAcentral chrom names in-place to match the main annotation's
+    ``chr`` convention (add/strip the prefix; ``MT``↔``chrM``). No-op if the two
+    sources already agree or the main set is empty."""
+    if not main_chroms:
+        return
+    main_has_chr = sum(c.startswith("chr") for c in main_chroms) > len(main_chroms) / 2
+    rna_chroms = {t.chrom for t in rna.values() if t.chrom}
+    rna_has_chr = bool(rna_chroms) and \
+        sum(c.startswith("chr") for c in rna_chroms) > len(rna_chroms) / 2
+    if main_has_chr == rna_has_chr:
+        return  # same convention already
+
+    def remap(c: str) -> str:
+        if main_has_chr and not c.startswith("chr"):
+            return "chrM" if c in ("MT", "mt") else "chr" + c
+        if not main_has_chr and c.startswith("chr"):
+            return "MT" if c == "chrM" else c[3:]
+        return c
+
+    for t in rna.values():
+        if t.chrom:
+            t.chrom = remap(t.chrom)
+
+
 # ── streaming parser ──────────────────────────────────────────────────────────
 
 def parse_annotation(
@@ -795,6 +820,12 @@ def build_sqlite_index(
     n_rnacentral = 0
     if rnacentral:
         rna = parse_rnacentral(Path(rnacentral), verbose=verbose)
+        # Harmonize chromosome naming to the main annotation's style so ncRNA
+        # regions display consistently (RNAcentral genome GFF3 is usually
+        # Ensembl-style "1"; GENCODE/UCSC annotations are "chr1").
+        main_chroms = {g.chrom for g in genes.values() if g.chrom}
+        main_chroms |= {t.chrom for t in transcripts.values() if t.chrom}
+        _harmonize_chroms(rna, main_chroms)
         for tid, t in rna.items():
             transcripts.setdefault(tid, t)   # URS ids won't collide with ENST
         n_rnacentral = len(rna)
