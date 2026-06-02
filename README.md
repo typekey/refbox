@@ -400,6 +400,20 @@ git push origin v0.3.0
 
 ## Changelog
 
+- **v0.5.4** — SQLite search: unified exact lookup + leaner `alias` table.
+  Exact matching (transcript_id / transcript_name / gene_name / gene_id /
+  synonym / RNAcentral ID / …) is now a **single index-only seek** into
+  `idx_alias_norm(alias_norm, alias_type, feature_id)` ranked by `alias_type`
+  — species-agnostic (ENSMUSG / ENSDARG / FBgn all just work) and ~9 page reads
+  instead of ~22 over an HTTP Range VFS. The `alias` table drops the original
+  `alias` text and `source` columns (the readable values live on the feature row
+  / `payload_json`) and no longer stores redundant `gene_id_versionless` /
+  `transcript_id_versionless` rows (normalization already strips the version;
+  `rnacentral_id_versionless` is kept — it strips the taxon suffix, so it is
+  *not* redundant). Dropped the unused `idx_alias_feature`. Net on GENCODE v44 +
+  RNAcentral + HGNC: 1638 → 1385 MB (−15%), aliases 6.5M → 5.4M. Behavior note:
+  a gene-name/gene-id query now returns the **gene** record (use
+  `WHERE gene_id = ? COLLATE NOCASE` to list its transcripts).
 - **v0.5.3** — Optional `--rnacentral` feed for the SQLite index: an RNAcentral
   genome-coordinates GFF3 (use the chromosome-normalized one) is merged in as
   additional ncRNA transcript records (`transcript` + `noncoding_exon`;

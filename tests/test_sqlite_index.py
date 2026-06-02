@@ -110,26 +110,18 @@ def test_coordinate_conventions(gtf_db: Path):
 # to an index seek. A virtual-table (FTS5) "SCAN ... VIRTUAL TABLE INDEX" is the
 # normal MATCH plan (index-driven, not a table scan) and is allowed.
 _TIER_QUERIES = [
-    ("transcript_id",
-     "SELECT id FROM feature WHERE transcript_id = ? COLLATE NOCASE LIMIT 10",
-     ("ENST00000269305.9",)),
-    ("versionless",
-     "SELECT id FROM feature WHERE id IN (SELECT feature_id FROM alias "
-     "WHERE alias_norm=? AND alias_type=?) LIMIT 10",
-     ("enst00000269305", "transcript_id_versionless")),
-    ("transcript_name",
-     "SELECT id FROM feature WHERE transcript_name = ? COLLATE NOCASE LIMIT 10",
-     ("TP53-201",)),
-    ("gene_name",
-     "SELECT id FROM feature WHERE gene_name = ? COLLATE NOCASE LIMIT 10",
-     ("TP53",)),
-    ("gene_id",
+    # The unified exact lookup search() now runs: one index-only seek into
+    # idx_alias_norm(alias_norm, alias_type, feature_id).
+    ("unified_exact",
+     "SELECT alias_type, feature_id FROM alias WHERE alias_norm = ? LIMIT 80",
+     ("tp53",)),
+    # Feature-column lookups still used directly (e.g. browser "expand gene").
+    ("gene_id_column",
      "SELECT id FROM feature WHERE gene_id = ? COLLATE NOCASE LIMIT 10",
      ("ENSG00000141510.18",)),
-    ("alias_exact",
-     "SELECT id FROM feature WHERE id IN (SELECT feature_id FROM alias "
-     "WHERE alias_norm=?) LIMIT 10",
-     ("tp53",)),
+    ("transcript_id_column",
+     "SELECT id FROM feature WHERE transcript_id = ? COLLATE NOCASE LIMIT 10",
+     ("ENST00000269305.9",)),
     ("prefix_fts",
      "SELECT id FROM feature WHERE id IN (SELECT rowid FROM feature_fts "
      "WHERE feature_fts MATCH ?) LIMIT 80",

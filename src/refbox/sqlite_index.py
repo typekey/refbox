@@ -491,9 +491,9 @@ def _ingest_gene(genes, chrom, source, start, end, strand, attrs, ftype_raw):
     g.biotype = (attrs.get("gene_type") or attrs.get("gene_biotype")
                  or attrs.get("biotype") or g.biotype)
     _add_alias(g.aliases, gid, "gene_id")
-    sv = strip_version(gid)
-    if sv != gid:
-        _add_alias(g.aliases, sv, "gene_id_versionless")
+    # No separate gene_id_versionless row: normalize() already strips the
+    # ``.<version>`` suffix, so the gene_id row's alias_norm IS the versionless
+    # form — a versionless query matches it directly.
     _add_alias(g.aliases, g.gene_name, "gene_name")
     _add_alias(g.aliases, attrs.get("havana_gene"), "havana")
     _add_alias(g.aliases, attrs.get("hgnc_id"), "hgnc")
@@ -521,9 +521,8 @@ def _ingest_transcript(transcripts, genes, chrom, source, start, end, strand,
     t.biotype = (attrs.get("transcript_type") or attrs.get("transcript_biotype")
                  or attrs.get("biotype") or t.biotype)
     _add_alias(t.aliases, tid, "transcript_id")
-    sv = strip_version(tid)
-    if sv != tid:
-        _add_alias(t.aliases, sv, "transcript_id_versionless")
+    # (no transcript_id_versionless: alias_norm of transcript_id is already
+    #  version-stripped, see _ingest_gene)
     _add_alias(t.aliases, t.transcript_name, "transcript_name")
     _add_alias(t.aliases, attrs.get("havana_transcript"), "havana")
     _add_alias(t.aliases, attrs.get("ccdsid") or attrs.get("ccds_id"), "ccds")
@@ -536,9 +535,6 @@ def _ingest_transcript(transcripts, genes, chrom, source, start, end, strand,
             if g is None:
                 g = genes[one] = _Gene(gene_id=one)
                 _add_alias(g.aliases, one, "gene_id")
-                sv2 = strip_version(one)
-                if sv2 != one:
-                    _add_alias(g.aliases, sv2, "gene_id_versionless")
             if not g.gene_name and t.gene_name:
                 g.gene_name = t.gene_name
                 _add_alias(g.aliases, t.gene_name, "gene_name")
@@ -556,9 +552,6 @@ def _ingest_subfeature(transcripts, attrs, start, end, kind, is_gff3):
             # sub-feature seen before its transcript line (rare ordering)
             t = transcripts[tid] = _Tx(transcript_id=tid)
             _add_alias(t.aliases, tid, "transcript_id")
-            sv = strip_version(tid)
-            if sv != tid:
-                _add_alias(t.aliases, sv, "transcript_id_versionless")
             if not t.gene_id and attrs.get("gene_id"):
                 t.gene_id = attrs["gene_id"]
         getattr(t, "exons" if kind == "exon" else
@@ -641,11 +634,11 @@ CREATE TABLE feature (
 
 CREATE TABLE alias (
     id          INTEGER PRIMARY KEY,
-    feature_id  INTEGER NOT NULL,
-    alias       TEXT,
-    alias_norm  TEXT,
-    alias_type  TEXT,
-    source      TEXT
+    feature_id  INTEGER NOT NULL,   -- the gene/transcript this alias points to
+    alias_norm  TEXT,               -- normalized form, the only thing matched on
+    alias_type  TEXT                -- gene_id | transcript_name | gene_synonym | rnacentral_id | …
+    -- (original alias text & source dropped: the readable values live on the
+    --  feature row / payload_json, so storing them again was pure overhead)
 );
 
 CREATE TABLE metadata (
@@ -686,12 +679,14 @@ _INDEXES = [
     "CREATE INDEX idx_feature_transcript_id  ON feature(transcript_id COLLATE NOCASE)",
     "CREATE INDEX idx_feature_transcript_name ON feature(transcript_name COLLATE NOCASE)",
     "CREATE INDEX idx_feature_chrom_start_end ON feature(chrom, start, end)",
-    # Covering index: the hot alias_exact lookup is
-    # ``SELECT feature_id FROM alias WHERE alias_norm = ?`` — including
-    # feature_id makes it index-only (no table row fetch), which over an HTTP
-    # Range VFS means one fewer page request per query.
-    "CREATE INDEX idx_alias_norm             ON alias(alias_norm, feature_id)",
-    "CREATE INDEX idx_alias_feature          ON alias(feature_id)",
+    # Covering index for the unified exact lookup:
+    #   SELECT alias_type, feature_id FROM alias WHERE alias_norm = ?
+    # Including alias_type + feature_id makes it index-only (no table row fetch),
+    # so one indexed seek resolves any id/name/synonym match across all species
+    # — over an HTTP Range VFS that is a handful of page reads instead of ~22.
+    # (No idx_alias_feature: nothing queries alias by feature_id — a feature's
+    #  own aliases are already inlined in feature.payload_json.)
+    "CREATE INDEX idx_alias_norm ON alias(alias_norm, alias_type, feature_id)",
 ]
 
 
@@ -865,8 +860,21 @@ def build_sqlite_index(
                   "gene_name, transcript_id, transcript_name, aliases, "
                   "search_text) VALUES (?,?,?,?,?,?,?,?)")
     insert_trgm = "INSERT INTO feature_trigram(rowid, search_text) VALUES (?,?)"
-    insert_alias = ("INSERT INTO alias(feature_id, alias, alias_norm, "
-                    "alias_type, source) VALUES (?,?,?,?,?)")
+    insert_alias = ("INSERT INTO alias(feature_id, alias_norm, alias_type) "
+                    "VALUES (?,?,?)")
+
+    def _alias_rows(fid, aliases):
+        """Yield (fid, alias_norm, alias_type) deduped per feature — different
+        original strings (OCT-4 / OCT4) can normalize to the same token, and we
+        no longer store the original, so collapse exact (norm, type) duplicates."""
+        seen = set()
+        for alias, atype in aliases.items():
+            nrm = normalize(alias)
+            key = (nrm, atype)
+            if not nrm or key in seen:
+                continue
+            seen.add(key)
+            yield (fid, nrm, atype)
 
     # Deterministic order: genes first, then transcripts, each sorted by
     # (chrom, start, id). Feature ids are therefore stable across runs.
@@ -890,9 +898,8 @@ def build_sqlite_index(
                                      " ".join(g.aliases.keys()), row[22]))
             if has_trigram:
                 cur.execute(insert_trgm, (fid, row[22]))
-        for alias, atype in g.aliases.items():
-            cur.execute(insert_alias, (fid, alias, normalize(alias), atype,
-                                       source_name or g.source))
+        for arow in _alias_rows(fid, g.aliases):
+            cur.execute(insert_alias, arow)
             n_alias += 1
         n_genes += 1
 
@@ -907,9 +914,8 @@ def build_sqlite_index(
                                      " ".join(t.aliases.keys()), row[22]))
             if has_trigram:
                 cur.execute(insert_trgm, (fid, row[22]))
-        for alias, atype in t.aliases.items():
-            cur.execute(insert_alias, (fid, alias, normalize(alias), atype,
-                                       source_name or t.source))
+        for arow in _alias_rows(fid, t.aliases):
+            cur.execute(insert_alias, arow)
             n_alias += 1
         n_tx += 1
     con.commit()
@@ -978,6 +984,16 @@ _RANK = {
     "prefix": 6, "trigram": 7, "like": 8,
 }
 
+# alias_type → (rank score, matched_field) for the unified exact lookup. Any
+# type not listed (gene_synonym, hgnc, havana, ccds, protein_id, rnacentral_*,
+# dbxref, refseq, name, alias, …) ranks as a generic alias_exact.
+_ALIAS_FIELD = {
+    "transcript_id":   (1, "transcript_id_exact"),
+    "transcript_name": (2, "transcript_name_exact"),
+    "gene_name":       (3, "gene_name_exact"),
+    "gene_id":         (4, "gene_id_exact"),
+}
+
 _SELECT = (
     "id, feature_type, gene_name, gene_id, transcript_name, transcript_id, "
     "chrom, start, end, strand, biotype")
@@ -1044,48 +1060,39 @@ def search(
                 return True
         return False
 
-    # Tier 1–4: exact column matches, each backed by a COLLATE NOCASE index
-    # (so the lookup is an index seek, not a table scan). For the two ID columns
-    # we also accept the versionless form via the dedicated ``*_versionless``
-    # alias rows — run as a separate indexed query rather than an ``OR`` so both
-    # halves stay index-friendly. Order: tx_id → tx_name → gene_name → gene_id.
-    def exact_col(field_name, col, versionless_type=None):
-        rows = cur.execute(
-            f"SELECT {_SELECT} FROM feature WHERE {col} = ? COLLATE NOCASE "
-            f"LIMIT ?", (query, limit)).fetchall()
-        if take(rows, field_name):
-            return True
-        if versionless_type is not None and len(results) < limit:
-            rows = cur.execute(
-                f"SELECT {_SELECT} FROM feature WHERE id IN "
-                f"(SELECT feature_id FROM alias WHERE alias_norm=? "
-                f"AND alias_type=?) LIMIT ?",
-                (norm_q, versionless_type, limit)).fetchall()
-            if take(rows, field_name):
-                return True
-        return False
-
-    if exact_col("transcript_id_exact", "transcript_id", "transcript_id_versionless"):
-        return results
-    if exact_col("transcript_name_exact", "transcript_name"):
-        return results
-    if exact_col("gene_name_exact", "gene_name"):
-        return results
-    if exact_col("gene_id_exact", "gene_id", "gene_id_versionless"):
-        return results
-
-    # Tier 5: alias exact (normalized) — joins alias → feature.
-    rows = cur.execute(
-        f"SELECT {_SELECT} FROM feature WHERE id IN "
-        f"(SELECT feature_id FROM alias WHERE alias_norm = ?) LIMIT ?",
-        (norm_q, limit)).fetchall()
-    take(rows, "alias_exact")
-
-    # If any *exact* tier (1–5) matched, return those — an exact hit should not
-    # be diluted (or slowed) by running the fuzzy prefix/trigram tiers just to
-    # pad the result list. The fuzzy tiers below only run when nothing exact
-    # matched (i.e. the user typed a partial / approximate token).
-    if results:
+    # Tiers 1–5 collapsed into ONE index-only seek into
+    # idx_alias_norm(alias_norm, alias_type, feature_id). A single lookup
+    # resolves any exact match — transcript_id / transcript_name / gene_name /
+    # gene_id / synonym / RefSeq / RNAcentral ID / … — across ALL species
+    # (ENSMUSG, ENSDARG, FBgn, AT1G…), with alias_type giving both the rank and
+    # the matched_field. Version-insensitive for free (alias_norm is already
+    # version-stripped). ~8 page reads instead of ~22.
+    cand = cur.execute(
+        "SELECT alias_type, feature_id FROM alias WHERE alias_norm = ? LIMIT ?",
+        (norm_q, max(limit * 8, 50))).fetchall()
+    if cand:
+        best: dict[int, tuple[int, str]] = {}   # feature_id -> (score, field)
+        for atype, fid_ in cand:
+            score, field = _ALIAS_FIELD.get(atype, (5, "alias_exact"))
+            cur_best = best.get(fid_)
+            if cur_best is None or score < cur_best[0]:
+                best[fid_] = (score, field)
+        # rank by (score, feature_id) — genes (lower ids) precede transcripts on ties
+        ordered = sorted(best.items(), key=lambda kv: (kv[1][0], kv[0]))[:limit]
+        ids = [fid_ for fid_, _ in ordered]
+        ph = ",".join("?" * len(ids))
+        rowmap = {r[0]: r for r in cur.execute(
+            f"SELECT {_SELECT} FROM feature WHERE id IN ({ph})", ids).fetchall()}
+        for fid_, (score, field) in ordered:
+            r = rowmap.get(fid_)
+            if r is None:
+                continue
+            d = _row_to_dict(r)
+            d["rank_score"] = score
+            d["matched_field"] = field
+            seen.add(d["id"])
+            results.append(d)
+        # An exact hit must not be diluted (or slowed) by the fuzzy tiers below.
         return results
 
     # Tier 6: prefix / autocomplete via feature_fts (if present).
@@ -1097,7 +1104,7 @@ def search(
                 rows = cur.execute(
                     f"SELECT {_SELECT} FROM feature WHERE id IN "
                     f"(SELECT rowid FROM feature_fts WHERE feature_fts MATCH ?) "
-                    f"LIMIT ?", (f'"{token}"*', limit * 8)).fetchall()
+                    f"LIMIT ?", (f'"{token}"*', limit * 4)).fetchall()
                 if take(_rerank(rows, norm_q), "prefix"):
                     return results
             except sqlite3.OperationalError:
@@ -1109,7 +1116,7 @@ def search(
             rows = cur.execute(
                 f"SELECT {_SELECT} FROM feature WHERE id IN "
                 f"(SELECT rowid FROM feature_trigram WHERE feature_trigram MATCH ?) "
-                f"LIMIT ?", (f'"{query}"', limit * 8)).fetchall()
+                f"LIMIT ?", (f'"{query}"', limit * 4)).fetchall()
             if take(_rerank(rows, norm_q), "trigram"):
                 return results
         except sqlite3.OperationalError:
