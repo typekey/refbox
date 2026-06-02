@@ -330,7 +330,8 @@ RNACENTRAL_GFF3 = (
     "Name=URS000035F234_9606;type=piRNA;databases=PirBase;"
     "ID=URS000035F234_9606.0:ncRNA_exon1;Parent=URS000035F234_9606.0\n"
     "chr1\tRNAcentral\ttranscript\t10245\t10273\t.\t-\t.\t"
-    "Name=URS000035F234_9606;type=piRNA;databases=PirBase;ID=URS000035F234_9606.0\n"
+    "Name=URS000035F234_9606;description=(human) piRNA piR-hsa-42;type=piRNA;"
+    "databases=PirBase;ID=URS000035F234_9606.0\n"
     "chr1\tRNAcentral\tpredicted_gene\t11612\t12227\t.\t+\t.\t"
     "Name=RNACG123.1;type=SO:0001877;ID=RNACG123.1\n"
     "chr11\tRNAcentral\ttranscript\t65497688\t65506516\t.\t+\t.\t"
@@ -356,11 +357,16 @@ def test_rnacentral_merge(tmp_path: Path):
     for q in ["URS000035F234_9606.0", "URS000035F234_9606", "URS000035F234"]:
         r = si.search(con, q, limit=3)
         assert r and r[0]["transcript_id"].startswith("URS000035F234")
-    # exon collected, type recorded as biotype/feature_type
+    # exon collected, type recorded as biotype/feature_type; description -> gene_name
     row = con.execute(
-        "SELECT feature_type, biotype, exon_count, source FROM feature "
+        "SELECT feature_type, biotype, exon_count, source, gene_name FROM feature "
         "WHERE transcript_id='URS000035F234_9606.0'").fetchone()
-    assert row == ("piRNA", "piRNA", 1, "RNAcentral")
+    assert row == ("piRNA", "piRNA", 1, "RNAcentral", "piRNA piR-hsa-42")  # "(human) " stripped
+    # the description is searchable: exact, prefix, and substring (trigram)
+    assert si.search(con, "piRNA piR-hsa-42", limit=3)[0]["matched_field"] == "alias_exact"
+    assert si.search(con, "piR-hsa", limit=3)            # prefix/substring
+    assert any(r["transcript_id"].startswith("URS000035F234")
+               for r in si.search(con, "hsa-42", limit=5))   # interior substring → trigram
     con.close()
 
 

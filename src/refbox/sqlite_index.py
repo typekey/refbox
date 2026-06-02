@@ -71,6 +71,8 @@ _GENE_TYPES = {
 _GTF_ATTR = re.compile(r'(\w+)\s+"([^"]*)"')
 _ENSEMBL_VERSION = re.compile(r"\.\d+$")
 _SEPARATORS = re.compile(r"[\s_.\-]+")
+# leading "(human) " / "(Homo sapiens) " species tag on RNAcentral descriptions
+_RNA_SPECIES_PREFIX = re.compile(r"^\([^)]*\)\s*")
 
 # alias types that are *names* (worth substring/fuzzy matching), as opposed to
 # IDs/accessions (gene_id, transcript_id, rnacentral_id/_db, havana, ccds,
@@ -78,7 +80,8 @@ _SEPARATORS = re.compile(r"[\s_.\-]+")
 # by fuzzy substring. The trigram (substring) index is built over names only
 # when fuzzy_scope='names' — this both shrinks it dramatically and removes the
 # pathological "numeric ID substring" query (e.g. 000003351 scanning all IDs).
-_NAME_LIKE_ALIAS = {"gene_name", "transcript_name", "gene_synonym", "name", "alias"}
+_NAME_LIKE_ALIAS = {"gene_name", "transcript_name", "gene_synonym", "name",
+                    "alias", "description"}
 
 
 def _fuzzy_text(names: "list[str]", aliases: dict[str, str]) -> str:
@@ -333,6 +336,14 @@ def parse_rnacentral(path: Path, *, verbose: bool = False) -> dict[str, "_Tx"]:
                 t.feature_type = rtype
                 t.biotype = rtype
                 t.transcript_name = name
+                # The RNAcentral `description` is the human-readable RNA name
+                # ("(human) tRNA-Ala", "… piRNA piR-hsa-4818588", …). Strip the
+                # leading "(species) " and use it as the displayed gene_name so
+                # it shows up and is fuzzy-searchable (it joins the names corpus).
+                desc = _RNA_SPECIES_PREFIX.sub("", attrs.get("description") or "").strip()
+                if desc:
+                    t.gene_name = desc
+                    _add_alias(t.aliases, desc, "description")
                 _add_alias(t.aliases, tid, "rnacentral_id")
                 _add_alias(t.aliases, name, "rnacentral_id")
                 base = strip_version(tid)          # URS…_9606.1 -> URS…_9606

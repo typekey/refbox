@@ -400,6 +400,12 @@ git push origin v0.3.0
 
 ## Changelog
 
+- **v0.5.6** — RNAcentral records are now searchable by their **description**:
+  the merge reads the GFF3 `description` attribute (e.g. `(human) tRNA-Ala`),
+  strips the leading `(species)` tag, and stores it as the ncRNA's `gene_name`
+  (so it displays) and as a name-like alias (so it resolves by exact / prefix /
+  substring — `tRNA-Ala`, `tRNA`, `piR-hsa-…`). Previously only the URS
+  accession was searchable.
 - **v0.5.5** — `--fuzzy-scope names` (new default): the trigram (substring) index
   is built over gene/transcript **names + synonyms only**, not IDs. IDs
   (gene_id / transcript_id / RNAcentral URS) are searched exactly or by prefix —
