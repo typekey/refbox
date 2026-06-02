@@ -103,6 +103,101 @@ def test_coordinate_conventions(gtf_db: Path):
     con.close()
 
 
+# ── no full table scans (critical for HTTP Range VFS hosting) ─────────────────
+
+# These mirror the SQL templates inside ``search()``. Over an HTTP Range VFS a
+# real table SCAN downloads the whole table, so every served query MUST resolve
+# to an index seek. A virtual-table (FTS5) "SCAN ... VIRTUAL TABLE INDEX" is the
+# normal MATCH plan (index-driven, not a table scan) and is allowed.
+_TIER_QUERIES = [
+    ("transcript_id",
+     "SELECT id FROM feature WHERE transcript_id = ? COLLATE NOCASE LIMIT 10",
+     ("ENST00000269305.9",)),
+    ("versionless",
+     "SELECT id FROM feature WHERE id IN (SELECT feature_id FROM alias "
+     "WHERE alias_norm=? AND alias_type=?) LIMIT 10",
+     ("enst00000269305", "transcript_id_versionless")),
+    ("transcript_name",
+     "SELECT id FROM feature WHERE transcript_name = ? COLLATE NOCASE LIMIT 10",
+     ("TP53-201",)),
+    ("gene_name",
+     "SELECT id FROM feature WHERE gene_name = ? COLLATE NOCASE LIMIT 10",
+     ("TP53",)),
+    ("gene_id",
+     "SELECT id FROM feature WHERE gene_id = ? COLLATE NOCASE LIMIT 10",
+     ("ENSG00000141510.18",)),
+    ("alias_exact",
+     "SELECT id FROM feature WHERE id IN (SELECT feature_id FROM alias "
+     "WHERE alias_norm=?) LIMIT 10",
+     ("tp53",)),
+    ("prefix_fts",
+     "SELECT id FROM feature WHERE id IN (SELECT rowid FROM feature_fts "
+     "WHERE feature_fts MATCH ?) LIMIT 80",
+     ('"tp"*',)),
+    ("trigram",
+     "SELECT id FROM feature WHERE id IN (SELECT rowid FROM feature_trigram "
+     "WHERE feature_trigram MATCH ?) LIMIT 80",
+     ('"p53"',)),
+]
+
+
+def _is_full_scan(detail: str) -> bool:
+    """True for any full scan that downloads a whole table *or* a whole index
+    over an HTTP Range VFS. Only an FTS5 virtual-table MATCH ("SCAN ... VIRTUAL
+    TABLE INDEX") is index-driven and safe; a "SCAN ... USING COVERING INDEX"
+    still reads the entire index and is a hazard.
+    """
+    d = detail.upper()
+    return d.startswith("SCAN") and "VIRTUAL TABLE" not in d
+
+
+@pytest.fixture
+def big_db(tmp_path: Path) -> Path:
+    """A few hundred synthetic features so the planner makes production-like
+    choices (on a 4-row table it scans everything regardless of indexes)."""
+    lines = ["##synthetic"]
+    for i in range(400):
+        gid = f"ENSG{i:011d}.1"
+        tid = f"ENST{i:011d}.2"
+        gn = f"GENE{i}"
+        lines.append(f'chr1\tT\tgene\t{i*100+1}\t{i*100+90}\t.\t+\t.\t'
+                     f'gene_id "{gid}"; gene_type "protein_coding"; gene_name "{gn}";')
+        lines.append(f'chr1\tT\ttranscript\t{i*100+1}\t{i*100+90}\t.\t+\t.\t'
+                     f'gene_id "{gid}"; transcript_id "{tid}"; gene_name "{gn}"; '
+                     f'transcript_name "{gn}-201";')
+        lines.append(f'chr1\tT\texon\t{i*100+1}\t{i*100+90}\t.\t+\t.\t'
+                     f'gene_id "{gid}"; transcript_id "{tid}";')
+    src = tmp_path / "big.gtf"
+    src.write_text("\n".join(lines) + "\n")
+    out = tmp_path / "big.sqlite"
+    si.build_sqlite_index(src, out, force=True)
+    return out
+
+
+def test_no_full_table_scans(big_db: Path):
+    con = sqlite3.connect(big_db)
+    for label, sql, params in _TIER_QUERIES:
+        plan = con.execute("EXPLAIN QUERY PLAN " + sql, params).fetchall()
+        offenders = [r[3] for r in plan if _is_full_scan(r[3])]
+        assert not offenders, f"tier {label!r} would full-scan: {offenders}"
+    con.close()
+
+
+def test_anti_patterns_do_scan(big_db: Path):
+    """Documents the three query shapes the browser must NEVER use — each one
+    degrades to a full scan (i.e. a full-DB/index download over HTTP Range)."""
+    con = sqlite3.connect(big_db)
+    bad = [
+        ("SELECT id FROM feature WHERE lower(gene_name) = ? LIMIT 10", ("gene1",)),
+        ("SELECT id FROM feature WHERE gene_name LIKE ? LIMIT 10", ("%GENE1%",)),
+        ("SELECT id FROM feature WHERE gene_name = ? LIMIT 10", ("gene1",)),  # no COLLATE
+    ]
+    for sql, a in bad:
+        plan = con.execute("EXPLAIN QUERY PLAN " + sql, a).fetchall()
+        assert any(_is_full_scan(r[3]) for r in plan), f"expected a scan for: {sql}"
+    con.close()
+
+
 # ── ranked search ─────────────────────────────────────────────────────────────
 
 @pytest.mark.parametrize("query,expect_field,expect_tid", [
