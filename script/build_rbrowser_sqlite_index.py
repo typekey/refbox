@@ -53,6 +53,9 @@ def main(argv: list[str] | None = None) -> int:
                     help="HGNC-style TSV (symbol/alias_symbol/prev_symbol/"
                          "ensembl_gene_id) → injected as gene_synonym aliases "
                          "(e.g. OCT4 → POU5F1)")
+    ap.add_argument("--rnacentral", default=None,
+                    help="RNAcentral genome-coordinates GFF3 (use the chrom-"
+                         "normalized one) → merged in as ncRNA records")
     ap.add_argument("--force", action="store_true", help="overwrite existing output")
     ap.add_argument("--verbose", action="store_true", help="DEBUG logging")
     args = ap.parse_args(argv)
@@ -67,7 +70,7 @@ def main(argv: list[str] | None = None) -> int:
         Path(args.output) if args.output else None,
         source_name=args.source_name, species=args.species, genome=args.genome,
         annotation_version=args.annotation_version, synonyms=args.synonyms,
-        force=args.force, verbose=args.verbose,
+        rnacentral=args.rnacentral, force=args.force, verbose=args.verbose,
     )
     print(f"OK: {out} ({out.stat().st_size / 1e6:.1f} MB)")
     return 0

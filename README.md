@@ -161,6 +161,18 @@ refbox build -sqlite gencode.v45.annotation.gtf.gz -o OUT.rbrowser.sqlite \
 > `p53`, `Nanog`…). Pass `--synonyms` with an HGNC `hgnc_complete_set.txt` to
 > inject `alias_symbol` / `prev_symbol` as searchable `gene_synonym` aliases.
 
+```bash
+# merge GENCODE genes/transcripts + RNAcentral ncRNAs + HGNC synonyms into one index
+refbox build -sqlite gencode.v45.annotation.gff3.gz -o human.rbrowser.sqlite \
+             --rnacentral rnacentral.normalized.gff3 \
+             --synonyms hgnc_complete_set.txt --force
+```
+
+> `--rnacentral` merges an RNAcentral genome-coordinates GFF3 (use the
+> chromosome-**normalized** file so coordinates display consistently). ncRNAs
+> become searchable by full ID (`URS…_9606.N`), URS accession (`URS…_9606`) and
+> versionless URS (`URS000035F234`).
+
 The three helper scripts in [`script/`](script/) are dependency-free (Python
 standard library only — they load the self-contained `refbox.sqlite_index`
 module directly, so they run even without the rest of refbox installed):
@@ -388,6 +400,12 @@ git push origin v0.3.0
 
 ## Changelog
 
+- **v0.5.3** — Optional `--rnacentral` feed for the SQLite index: an RNAcentral
+  genome-coordinates GFF3 (use the chromosome-normalized one) is merged in as
+  additional ncRNA transcript records (`transcript` + `noncoding_exon`;
+  `predicted_gene` ignored), searchable by full ID, URS accession and
+  versionless URS (`URS000035F234`). `refbox build -sqlite … --rnacentral
+  rnacentral.normalized.gff3`.
 - **v0.5.2** — Optional `--synonyms` feed for the SQLite index: an HGNC-style
   TSV (`symbol` / `alias_symbol` / `prev_symbol` / `ensembl_gene_id`) is injected
   as `gene_synonym` aliases (matched by Ensembl ID, fallback by symbol), so common

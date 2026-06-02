@@ -22,6 +22,10 @@ species:
         url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/homo_sapiens.GRCh38.gff3.gz
       ccre:
         url: https://downloads.wenglab.org/V3/GRCh38-cCREs.bed
+      mirbase:
+        url: https://www.mirbase.org/download/hsa.gff3   # miRBase 22.1, genome-build GRCh38
+      hgnc:
+        url: https://storage.googleapis.com/public-download-files/hgnc/tsv/tsv/hgnc_complete_set.txt
     GRCh37:
       enabled: false
       gencode_version: 44
@@ -46,6 +50,9 @@ species:
           url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/homo_sapiens.GRCh38.gff3.gz
           chain_url: https://hgdownload.soe.ucsc.edu/goldenPath/hg38/liftOver/hg38ToHg19.over.chain.gz
       ccre: null
+      hgnc:
+        url: https://storage.googleapis.com/public-download-files/hgnc/tsv/tsv/hgnc_complete_set.txt
+      # miRBase 22.1 hsa coords are GRCh38-only; no GRCh37 build → omitted
     hg18:
       enabled: false
       ucsc_db: hg18
@@ -103,6 +110,8 @@ species:
           chain_url: https://hgdownload.soe.ucsc.edu/goldenPath/mm39/liftOver/mm39ToMm10.over.chain.gz
       ccre:
         url: https://downloads.wenglab.org/V3/mm10-cCREs.bed
+      mirbase:
+        url: https://www.mirbase.org/download/mmu.gff3   # miRBase 22.1, genome-build GRCm38 (mm10); GRCm39/mm9 not provided
     GRCm39:
       enabled: true
       gencode_version: M34
@@ -166,6 +175,8 @@ species:
       repeats_gtf: null
       rnacentral: null
       ccre: null
+      mirbase:
+        url: https://www.mirbase.org/download/ptr.gff3   # miRBase 22.1, genome-build Pan_tro3.0
       ensembl_release: 111
   Pan_paniscus:
     panPan2:
@@ -339,6 +350,8 @@ species:
       repeats_gtf: null
       rnacentral: null
       ccre: null
+      mirbase:
+        url: https://www.mirbase.org/download/cfa.gff3   # miRBase 22.1, genome-build CanFam3.1; canFam4/canFam5 not provided
     canFam4:
       enabled: false
       ucsc_db: canFam4
@@ -406,6 +419,8 @@ species:
           url: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/rattus_norvegicus.mRatBN7.2.gff3.gz
           chain_url: https://hgdownload.soe.ucsc.edu/goldenPath/rn7/liftOver/rn7ToRn6.over.chain.gz
       ccre: null
+      mirbase:
+        url: https://www.mirbase.org/download/rno.gff3   # miRBase 22.1, genome-build Rnor_6.0 (rn6); rn7/mRatBN7.2 not provided
     rn7:
       enabled: false
       ucsc_db: rn7
@@ -498,6 +513,8 @@ species:
       repeats_bed: null
       repeats_gtf: null
       ccre: null
+      mirbase:
+        url: https://www.mirbase.org/download/dre.gff3   # miRBase 22.1, genome-build GRCz11
     GRCz10:
       enabled: false
       ucsc_db: danRer10
@@ -540,6 +557,8 @@ species:
       repeats_bed: null
       repeats_gtf: null
       ccre: null
+      mirbase:
+        url: https://www.mirbase.org/download/dme.gff3   # miRBase 22.1, genome-build Release_6 (BDGP6)
     dm6:
       enabled: false
       ucsc_db: dm6
@@ -562,6 +581,8 @@ species:
       repeats_bed: null
       repeats_gtf: null
       ccre: null
+      mirbase:
+        url: https://www.mirbase.org/download/dme.gff3   # miRBase 22.1, genome-build Release_6 (BDGP6); dm3/r5.9 not provided
       ensembl_release: 111
     dm3:
       enabled: false
@@ -615,6 +636,8 @@ species:
       repeats_bed: null
       repeats_gtf: null
       ccre: null
+      mirbase:
+        url: https://www.mirbase.org/download/cel.gff3   # miRBase 22.1, genome-build WBcel235 (ce11)
       ensembl_release: 111
   Lytechinus_variegatus:
     Lvar3.0:
@@ -700,6 +723,8 @@ species:
       repeats_bed: null
       repeats_gtf: null
       ccre: null
+      mirbase:
+        url: https://www.mirbase.org/download/ath.gff3   # miRBase 22.1, genome-build TAIR10
   Oryza_sativa:
     IRGSP-1.0:
       enabled: false

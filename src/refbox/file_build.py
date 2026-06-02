@@ -150,6 +150,7 @@ def build_gxf(
     genome: str = "",
     annotation_version: str = "",
     synonyms: str | Path | None = None,
+    rnacentral: str | Path | None = None,
     force: bool = False,
 ) -> Path:
     """Sort + bgzip + tabix a GTF/GFF3 file. Returns the ``.gz`` path.
@@ -205,7 +206,7 @@ def build_gxf(
         build_sqlite_index(
             input_gxf, sqlite_out, source_name=source_name, species=species,
             genome=genome, annotation_version=annotation_version,
-            synonyms=synonyms, force=force,
+            synonyms=synonyms, rnacentral=rnacentral, force=force,
         )
 
     plain.unlink(missing_ok=True)

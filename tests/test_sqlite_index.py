@@ -297,6 +297,48 @@ def test_no_synonyms_no_oct4(tmp_path: Path):
     con.close()
 
 
+# ── RNAcentral merge ──────────────────────────────────────────────────────────
+
+RNACENTRAL_GFF3 = (
+    "##gff-version 3\n"
+    "chr1\tRNAcentral\tnoncoding_exon\t10245\t10263\t.\t-\t.\t"
+    "Name=URS000035F234_9606;type=piRNA;databases=PirBase;"
+    "ID=URS000035F234_9606.0:ncRNA_exon1;Parent=URS000035F234_9606.0\n"
+    "chr1\tRNAcentral\ttranscript\t10245\t10273\t.\t-\t.\t"
+    "Name=URS000035F234_9606;type=piRNA;databases=PirBase;ID=URS000035F234_9606.0\n"
+    "chr1\tRNAcentral\tpredicted_gene\t11612\t12227\t.\t+\t.\t"
+    "Name=RNACG123.1;type=SO:0001877;ID=RNACG123.1\n"
+    "chr11\tRNAcentral\ttranscript\t65497688\t65506516\t.\t+\t.\t"
+    "Name=URS000075CC93_9606;type=lncRNA;databases=Ensembl,LNCipedia;"
+    "ID=URS000075CC93_9606.1\n"
+)
+
+
+def test_rnacentral_merge(tmp_path: Path):
+    src = tmp_path / "annot.gtf"
+    src.write_text(GTF)
+    rna = tmp_path / "rnacentral.gff3"
+    rna.write_text(RNACENTRAL_GFF3)
+    out = tmp_path / "idx.sqlite"
+    si.build_sqlite_index(src, out, rnacentral=rna, force=True)
+    info = si.inspect(out)
+    # 2 GENCODE transcripts + 2 RNAcentral (predicted_gene ignored)
+    assert int(info["metadata"]["n_rnacentral_transcripts"]) == 2
+    assert info["n_transcripts"] == 4
+
+    con = si.open_readonly(out)
+    # full ID, URS accession (no taxid), and versionless all resolve
+    for q in ["URS000035F234_9606.0", "URS000035F234_9606", "URS000035F234"]:
+        r = si.search(con, q, limit=3)
+        assert r and r[0]["transcript_id"].startswith("URS000035F234")
+    # exon collected, type recorded as biotype/feature_type
+    row = con.execute(
+        "SELECT feature_type, biotype, exon_count, source FROM feature "
+        "WHERE transcript_id='URS000035F234_9606.0'").fetchone()
+    assert row == ("piRNA", "piRNA", 1, "RNAcentral")
+    con.close()
+
+
 # ── gzip input ────────────────────────────────────────────────────────────────
 
 def test_gzip_input(tmp_path: Path):

@@ -272,6 +272,83 @@ def enrich_with_synonyms(
     return added
 
 
+# ── RNAcentral merge ──────────────────────────────────────────────────────────
+
+def parse_rnacentral(path: Path, *, verbose: bool = False) -> dict[str, "_Tx"]:
+    """Parse an RNAcentral genome-coordinates GFF3 into transcript records.
+
+    RNAcentral GFF3 uses ``transcript`` features (``ID=URS…_9606.N``,
+    ``Name=URS…_9606``, ``type=lncRNA|piRNA|…``) with ``noncoding_exon`` children
+    (``Parent=URS…_9606.N``). ``predicted_gene`` rows are ignored. Each record
+    is searchable by its full ID, its URS accession (with and without the
+    ``_taxid``), so e.g. ``URS000035F234`` resolves.
+
+    Use the chromosome-normalized file (``chr``-prefixed) so coordinates display
+    consistently with a GENCODE/UCSC main annotation.
+    """
+    txs: dict[str, _Tx] = {}
+    n_lines = 0
+    with _open_text(path) as fh:
+        for raw in fh:
+            n_lines += 1
+            if not raw or raw[0] == "#":
+                continue
+            cols = raw.rstrip("\n").split("\t")
+            if len(cols) < 9:
+                continue
+            ftype = cols[2]
+            if ftype == "transcript":
+                attrs = _parse_attrs_gff3(cols[8])
+                tid = attrs.get("ID")
+                if not tid:
+                    continue
+                try:
+                    start, end = int(cols[3]), int(cols[4])
+                except ValueError:
+                    continue
+                name = attrs.get("Name") or tid
+                rtype = attrs.get("type") or "ncRNA"
+                t = txs.get(tid)
+                if t is None:
+                    t = txs[tid] = _Tx(transcript_id=tid)
+                t.chrom, t.strand = cols[0], cols[6]
+                t.start, t.end = start, end
+                t.source = "RNAcentral"
+                t.feature_type = rtype
+                t.biotype = rtype
+                t.transcript_name = name
+                _add_alias(t.aliases, tid, "rnacentral_id")
+                _add_alias(t.aliases, name, "rnacentral_id")
+                base = strip_version(tid)          # URS…_9606.1 -> URS…_9606
+                if base != tid:
+                    _add_alias(t.aliases, base, "rnacentral_id")
+                urs = name.split("_")[0] if name else ""   # URS…_9606 -> URS…
+                if urs and urs != name:
+                    _add_alias(t.aliases, urs, "rnacentral_id_versionless")
+                for db in (attrs.get("databases") or "").split(","):
+                    _add_alias(t.aliases, db.strip(), "rnacentral_db")
+            elif ftype == "noncoding_exon":
+                attrs = _parse_attrs_gff3(cols[8])
+                parent = attrs.get("Parent")
+                if not parent:
+                    continue
+                try:
+                    s, e = int(cols[3]), int(cols[4])
+                except ValueError:
+                    continue
+                for one in parent.split(","):
+                    t = txs.get(one)
+                    if t is None:
+                        t = txs[one] = _Tx(transcript_id=one)
+                        t.chrom, t.strand = cols[0], cols[6]
+                        t.source = "RNAcentral"
+                        _add_alias(t.aliases, one, "rnacentral_id")
+                    t.exons.append((s, e))
+            # predicted_gene and others: ignored
+    log.info("rnacentral: parsed %d lines -> %d transcripts", n_lines, len(txs))
+    return txs
+
+
 # ── streaming parser ──────────────────────────────────────────────────────────
 
 def parse_annotation(
@@ -678,6 +755,7 @@ def build_sqlite_index(
     genome: str = "",
     annotation_version: str = "",
     synonyms: Path | str | None = None,
+    rnacentral: Path | str | None = None,
     force: bool = False,
     verbose: bool = False,
 ) -> Path:
@@ -686,6 +764,9 @@ def build_sqlite_index(
     ``output`` defaults to ``<input-stem>.rbrowser.sqlite`` next to the input.
     ``synonyms`` optionally points at an HGNC-style TSV whose alias/prev symbols
     are injected as ``gene_synonym`` aliases (so ``OCT4`` resolves to POU5F1).
+    ``rnacentral`` optionally points at an RNAcentral genome-coordinates GFF3
+    (use the chromosome-normalized one) whose ncRNA transcripts are merged in as
+    additional searchable records.
     """
     input_path = Path(input_path)
     if output is None:
@@ -710,6 +791,13 @@ def build_sqlite_index(
     n_synonyms = 0
     if synonyms:
         n_synonyms = enrich_with_synonyms(genes, Path(synonyms))
+
+    n_rnacentral = 0
+    if rnacentral:
+        rna = parse_rnacentral(Path(rnacentral), verbose=verbose)
+        for tid, t in rna.items():
+            transcripts.setdefault(tid, t)   # URS ids won't collide with ENST
+        n_rnacentral = len(rna)
 
     # Build into a temp file then atomically replace, so a crash can't leave a
     # half-written index in place.
@@ -807,6 +895,8 @@ def build_sqlite_index(
         "input_format": "GFF3" if is_gff3 else "GTF",
         "synonyms_file": Path(synonyms).name if synonyms else "",
         "n_synonyms_injected": str(n_synonyms),
+        "rnacentral_file": Path(rnacentral).name if rnacentral else "",
+        "n_rnacentral_transcripts": str(n_rnacentral),
         "coord_convention": (
             "start/end and *_start/*_end are 1-based inclusive; "
             "chrom_start0/chrom_end0 are 0-based half-open"),
