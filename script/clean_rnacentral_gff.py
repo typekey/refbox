@@ -83,6 +83,7 @@ def main(argv: list[str] | None = None) -> int:
 
     m = _load_module()
     clean = m.clean_rnacentral_name
+    display_name = m.rnacentral_display_name
 
     inp = Path(args.input)
     n_tx = 0
@@ -101,26 +102,28 @@ def main(argv: list[str] | None = None) -> int:
             attrs = dict(_ATTR.findall(cols[8]))
             rtype = attrs.get("type") or "ncRNA"
             desc = attrs.get("description") or ""
+            urs = attrs.get("Name") or attrs.get("ID") or ""
             short, full = clean(desc, rtype)
+            name = display_name(short, full, urs)   # what becomes gene_name
 
             if cols[2] == "transcript":
                 n_tx += 1
-                if short and short != full:
+                if name != urs:
                     n_short += 1
                 if args.preview:
-                    urs = attrs.get("Name") or attrs.get("ID") or ""
-                    out.write(f"{urs}\t{rtype}\t{short}\t{full}\n")
+                    out.write(f"{urs}\t{rtype}\t{name}\t{full}\n")
                     continue
 
             if not args.preview:
-                if short and "gene_name=" not in cols[8]:
+                if name and "gene_name=" not in cols[8]:
                     # inject gene_name right after the description (or at end)
-                    cols[8] = cols[8].rstrip(";") + f";gene_name={short}"
+                    cols[8] = cols[8].rstrip(";") + f";gene_name={name}"
                 out.write("\t".join(cols) + "\n")
 
     sys.stderr.write(
-        f"transcripts: {n_tx}  short-symbol derived: {n_short} "
-        f"({100 * n_short // max(n_tx, 1)}%)\n")
+        f"transcripts: {n_tx}  named by symbol: {n_short} "
+        f"(URS fallback: {n_tx - n_short}; "
+        f"{100 * n_short // max(n_tx, 1)}% symbol)\n")
     return 0
 
 

@@ -399,6 +399,31 @@ def test_clean_rnacentral_name():
         assert "(human)" not in full and "%2C" not in full         # cleaned full kept too
 
 
+def test_rnacentral_display_name():
+    """The display name (gene_name/transcript_name) is a short clean token, or
+    the URS accession — never a sentence, a bare type word, or spaces/symbols."""
+    URS = "URS00005E40B1_9606"
+    cases = [
+        # (short, full) -> expected display
+        ("DDX11L11", "DEAD/H-box helicase 11 like 11", "DDX11L11"),   # symbol kept
+        ("miR-34a-5p", "hsa-miR-34a-5p", "miR-34a-5p"),
+        # bare type word → URS fallback (the "only tRNA" screenshot bug)
+        ("tRNA", "tRNA", URS),
+        ("non-coding RNA", "non-coding RNA", URS),
+        # long sentence → URS fallback
+        (None, "family with sequence similarity 138 member A", URS),
+        ("Metazoan signal recognition particle RNA",
+         "Metazoan signal recognition particle RNA", URS),
+        # short multi-word → spaces collapsed to "-"
+        (None, "5S ribosomal RNA", "5S-ribosomal-RNA"),
+        ("H/ACA snoRNA", "H/ACA snoRNA", "H-ACA-snoRNA"),
+    ]
+    for short, full, expected in cases:
+        got = si.rnacentral_display_name(short, full, URS)
+        assert got == expected, f"({short!r},{full!r}) -> {got!r}, want {expected!r}"
+        assert " " not in got                       # never any spaces
+
+
 def test_rnacentral_chrom_harmonization(tmp_path: Path):
     """RNAcentral Ensembl-style chroms ('1') are remapped to the main
     annotation's 'chr1' convention so coordinates display consistently."""

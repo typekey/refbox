@@ -172,6 +172,50 @@ def clean_rnacentral_name(description: str, rtype: str) -> "tuple[str, str]":
         short = full
     return short, full
 
+
+# ── display name (what goes in gene_name / transcript_name) ────────────────────
+# A good RNAcentral display name is SHORT and token-like (a symbol/accession).
+# Free-text descriptions ("family with sequence similarity 138 member A") and
+# bare type words ("tRNA", "ncRNA") are useless as labels — fall back to the URS
+# accession instead. Spaces / odd characters are collapsed to "-".
+_RNA_MAX_NAME = 25                                # longer than this → use the URS
+_RNA_UNSAFE = re.compile(r"[^A-Za-z0-9._-]+")     # keep alnum . _ - ; rest → "-"
+# bare RNA-type / placeholder words that carry no identity (compared lowercased,
+# after sanitization so e.g. "non-coding RNA" → "non-coding-rna")
+_RNA_GENERIC = {
+    "rna", "ncrna", "trna", "rrna", "mrna", "lncrna", "mirna", "pre-mirna",
+    "pirna", "snrna", "snorna", "scarna", "scrna", "srna", "misc-rna", "miscrna",
+    "miscellaneous-rna", "non-coding-rna", "noncoding-rna", "other", "srp-rna",
+    "y-rna", "vault-rna", "precursor-rna", "primary-transcript", "antisense-rna",
+    "circrna", "predicted", "unknown", "partial-ncrna", "ncrna-gene", "mt-trna",
+    "hammerhead-ribozyme", "ribozyme", "guide-rna", "rnase-p-rna",
+    "rnase-mrp-rna", "telomerase-rna", "lnc-rna", "small-nucleolar-rna",
+    "ribosomal-rna", "transfer-rna", "partial-rna",
+}
+
+
+def _rna_sanitize(s: str) -> str:
+    """Collapse whitespace / special characters to "-" so a name has no spaces
+    or odd symbols (``H/ACA snoRNA`` → ``H-ACA-snoRNA``, ``5S ribosomal RNA`` →
+    ``5S-ribosomal-RNA``)."""
+    s = _RNA_UNSAFE.sub("-", (s or "").strip())
+    s = re.sub(r"-{2,}", "-", s).strip("-")
+    return s
+
+
+def _rna_is_generic(s: str) -> bool:
+    return _rna_sanitize(s).lower() in _RNA_GENERIC
+
+
+def rnacentral_display_name(short: str, full: str, accession: str) -> str:
+    """Pick the label for gene_name/transcript_name: a sanitized short symbol
+    when one is short, specific, and clean enough; otherwise the URS accession
+    (e.g. ``URS00005E40B1_9606``) — never a long sentence or a bare type word."""
+    san = _rna_sanitize(short or full or "")
+    if san and len(san) <= _RNA_MAX_NAME and san.lower() not in _RNA_GENERIC:
+        return san
+    return accession
+
 # alias types that are *names* (worth substring/fuzzy matching), as opposed to
 # IDs/accessions (gene_id, transcript_id, rnacentral_id/_db, havana, ccds,
 # protein_id, hgnc, dbxref, refseq) which users search exactly or by prefix, not
@@ -436,15 +480,19 @@ def parse_rnacentral(path: Path, *, verbose: bool = False) -> dict[str, "_Tx"]:
                 t.transcript_name = name
                 # The RNAcentral `description` is a long free-text label
                 # ("DEAD/H-box helicase 11 like 11 …(DDX11L11)", "(human) tRNA-Ala").
-                # Distill a short, recognizable name for display (gene_name +
-                # transcript_name), and keep the FULL description as a searchable
-                # alias so every word stays findable (fuzzy recall unchanged).
+                # Distill a SHORT recognizable name for display; if none is short
+                # & specific enough, fall back to the URS accession (never a
+                # sentence or a bare type word like "tRNA"). The symbol and the
+                # full description are still kept as aliases so recall is unchanged.
                 short, full = clean_rnacentral_name(attrs.get("description") or "", rtype)
-                if short:
-                    t.gene_name = short
-                    t.transcript_name = short
+                display = rnacentral_display_name(short, full, name)
+                t.gene_name = display
+                t.transcript_name = display
+                if display != name:
+                    _add_alias(t.aliases, display, "transcript_name")
+                if short and short != display:
                     _add_alias(t.aliases, short, "transcript_name")
-                if full and full != short:
+                if full and full not in (short, display) and not _rna_is_generic(full):
                     _add_alias(t.aliases, full, "description")
                 _add_alias(t.aliases, tid, "rnacentral_id")
                 _add_alias(t.aliases, name, "rnacentral_id")
