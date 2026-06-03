@@ -93,12 +93,12 @@ refbox build -fa  GENOME.fa [-o OUT.fa.gz]
 refbox build -gtf ANNOT.gtf [-o OUT.gtf.gz]
 refbox build -gff ANNOT.gff3 [-o OUT.gff3.gz]
 
-# …and also emit a static SQLite search index alongside the tabix output:
-refbox build -gtf ANNOT.gtf --with-sqlite \
+# …and also emit a static RBrowser Index (.rbi) alongside the tabix output:
+refbox build -gtf ANNOT.gtf --with-rbi \
              --source-name GENCODE --genome hg38 --annotation-version v45
 
-# Standalone: GTF/GFF3 → read-only SQLite search index (no tabix/bgzip)
-refbox build -sqlite ANNOT.gtf.gz -o OUT.rbrowser.sqlite \
+# Standalone: GTF/GFF3 → read-only RBrowser Index (.rbi; no tabix/bgzip)
+refbox build -rbi ANNOT.gtf.gz -o OUT.rbi \
              --source-name GENCODE --species human --genome hg38 \
              --annotation-version v45 --force
 
@@ -134,28 +134,36 @@ refbox test     --include-disabled                 # everything in the registry
 
 ---
 
-## SQLite search index (for in-browser transcript/gene search)
+## RBrowser Index `.rbi` (for in-browser transcript/gene search)
 
 `tabix` answers *positional* range queries; it cannot answer "what is TP53?".
-For that, `refbox` can build a **standalone, read-only SQLite file** from a
-GTF/GFF3 that powers exact / prefix-autocomplete / fuzzy-substring / alias
-search. It is meant to be hosted as a static file and queried directly from the
-browser via **SQLite WASM + an HTTP Range VFS** — no backend service required.
+For that, `refbox` can build a **standalone, read-only RBrowser Index** — a
+`.rbi` file — from a GTF/GFF3 that powers exact / prefix-autocomplete /
+fuzzy-substring / alias search.
+
+> **`.rbi` = "RBrowser Index".** Internally it is an ordinary **SQLite database
+> with FTS5** search tables; the dedicated extension just signals the format and
+> its intended use. It is hosted as a **static file** and queried directly from
+> the browser via **SQLite WASM + an HTTP Range VFS** — no backend service
+> required. (Naming, e.g. `hg38.gencode.v45.transcript.rbi`.)
 
 ```bash
 # build it next to the tabix output (one command)
-refbox build -gtf gencode.v45.annotation.gtf.gz --with-sqlite \
+refbox build -gtf gencode.v45.annotation.gtf.gz --with-rbi \
              --source-name GENCODE --species human --genome hg38 \
              --annotation-version v45
 
 # or standalone, anywhere
-refbox build -sqlite gencode.v45.annotation.gtf.gz -o hg38.gencode.v45.rbrowser.sqlite \
+refbox build -rbi gencode.v45.annotation.gtf.gz -o hg38.gencode.v45.transcript.rbi \
              --source-name GENCODE --genome hg38 --annotation-version v45 --force
 
 # with HGNC synonyms so common names resolve (OCT4 -> POU5F1, OTF3 -> POU5F1):
-refbox build -sqlite gencode.v45.annotation.gtf.gz -o OUT.rbrowser.sqlite \
+refbox build -rbi gencode.v45.annotation.gtf.gz -o OUT.rbi \
              --synonyms hgnc_complete_set.txt --force
 ```
+
+> Back-compat: `-sqlite` / `--with-sqlite` remain accepted aliases for
+> `-rbi` / `--with-rbi`.
 
 > GENCODE/Ensembl annotations do **not** carry common gene synonyms (`OCT4`,
 > `p53`, `Nanog`…). Pass `--synonyms` with an HGNC `hgnc_complete_set.txt` to
@@ -163,7 +171,7 @@ refbox build -sqlite gencode.v45.annotation.gtf.gz -o OUT.rbrowser.sqlite \
 
 ```bash
 # merge GENCODE genes/transcripts + RNAcentral ncRNAs + HGNC synonyms into one index
-refbox build -sqlite gencode.v45.annotation.gff3.gz -o human.rbrowser.sqlite \
+refbox build -rbi gencode.v45.annotation.gff3.gz -o human.rbi \
              --rnacentral rnacentral.normalized.gff3 \
              --synonyms hgnc_complete_set.txt --force
 ```
@@ -172,16 +180,25 @@ refbox build -sqlite gencode.v45.annotation.gff3.gz -o human.rbrowser.sqlite \
 > chromosome-**normalized** file so coordinates display consistently). ncRNAs
 > become searchable by full ID (`URS…_9606.N`), URS accession (`URS…_9606`) and
 > versionless URS (`URS000035F234`).
+>
+> RNAcentral's only label is a long free-text `description`, so the gene/
+> transcript **display name is distilled to a short, recognizable symbol**:
+> `DDX11L11`, `miR-34a-5p`, `pre-mir-571`, `piR-hsa-4818588`, `5S-rRNA`,
+> `Metazoan-SRP-RNA`. Names are always token-like (no spaces/special chars);
+> a generic type word (`tRNA`) or an over-long sentence falls back to the URS
+> accession. The full original description is kept as a searchable alias, so
+> recall is unchanged. See [`script/clean_rnacentral_gff.py`](script/clean_rnacentral_gff.py)
+> to preview the mapping (`--preview`) or rewrite a GFF3 with `gene_name=`.
 
-The three helper scripts in [`script/`](script/) are dependency-free (Python
-standard library only — they load the self-contained `refbox.sqlite_index`
-module directly, so they run even without the rest of refbox installed):
+The helper scripts in [`script/`](script/) are dependency-free (Python standard
+library only — they load the self-contained `refbox.sqlite_index` module
+directly, so they run even without the rest of refbox installed):
 
 ```bash
-python script/build_rbrowser_sqlite_index.py  --input ANNOT.gtf.gz --output idx.sqlite \
+python script/build_rbrowser_sqlite_index.py  --input ANNOT.gtf.gz --output idx.rbi \
         --source-name GENCODE --species human --genome hg38 --annotation-version v45 --force
-python script/inspect_rbrowser_sqlite_index.py --db idx.sqlite
-python script/test_rbrowser_sqlite_search.py   --db idx.sqlite \
+python script/inspect_rbrowser_sqlite_index.py --db idx.rbi
+python script/test_rbrowser_sqlite_search.py   --db idx.rbi \
         --queries TP53 ENST00000269305 p53 BRCA1 MALAT1 ACTB --repeat 100 --limit 10
 ```
 
@@ -258,13 +275,13 @@ from refbox.test     import test_targets
 from refbox          import file_build as fb     # single-file builders
 from refbox.ingest   import ingest_directory     # directory ingest
 from refbox.report   import build_report         # Markdown status report
-from refbox.sqlite_index import (                # static SQLite search index
+from refbox.sqlite_index import (                # static RBrowser Index (.rbi)
     build_sqlite_index, search, inspect, open_readonly, normalize)
 ```
 
 ```python
-# Build a search index and query it the way the browser will.
-db = build_sqlite_index("gencode.v45.annotation.gtf.gz", "idx.sqlite",
+# Build an RBrowser Index (.rbi) and query it the way the browser will.
+db = build_sqlite_index("gencode.v45.annotation.gtf.gz", "idx.rbi",
                         source_name="GENCODE", genome="hg38", force=True)
 con = open_readonly(db)
 for hit in search(con, "TP53", limit=10):
@@ -400,6 +417,20 @@ git push origin v0.3.0
 
 ## Changelog
 
+- **v0.6.0** — The search index is now the **RBrowser Index `.rbi`** (was
+  `*.rbrowser.sqlite`). It is still a SQLite + FTS5 file internally; the new
+  extension signals the format/use for SQLite-WASM + HTTP Range hosting (e.g.
+  `hg38.gencode.v45.transcript.rbi`). New flags `refbox build -rbi` /
+  `--with-rbi` (old `-sqlite` / `--with-sqlite` kept as aliases); default output
+  is `<input-stem>.rbi`; scripts, README and the web reference client updated.
+- **v0.5.7–0.5.9** — RNAcentral **name cleaning**. The long free-text
+  `description` is distilled into a short, token-like display name
+  (`DDX11L11`, `miR-34a-5p`, `pre-mir-571`, `lnc-OR4F29-11-7`, `piR-hsa-4818588`,
+  `5S-rRNA`, `Metazoan-SRP-RNA`); names never contain spaces/special characters,
+  and a generic type word (`tRNA`) or an over-long sentence falls back to the URS
+  accession. The full description stays a searchable alias (recall unchanged).
+  New `clean_rnacentral_name()` / `rnacentral_display_name()` +
+  `script/clean_rnacentral_gff.py`.
 - **v0.5.6** — RNAcentral records are now searchable by their **description**:
   the merge reads the GFF3 `description` attribute (e.g. `(human) tRNA-Ala`),
   strips the leading `(species)` tag, and stores it as the ncRNA's `gene_name`

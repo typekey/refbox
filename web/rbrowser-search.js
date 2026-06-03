@@ -1,8 +1,8 @@
 /**
- * RBrowser static SQLite search — frontend reference implementation.
+ * RBrowser Index (.rbi) static search — frontend reference implementation.
  *
  * Mirrors refbox.sqlite_index.search() (refbox v0.5.5) exactly, against a
- * read-only *.sqlite served as a static file and queried with sql.js-httpvfs
+ * read-only *.rbi (SQLite+FTS5) served as a static file and queried with sql.js-httpvfs
  * (SQLite WASM + HTTP Range VFS). No backend.
  *
  * Schema it expects (v0.5.5):
@@ -29,7 +29,7 @@
 import { createDbWorker } from "sql.js-httpvfs";
 
 const DB_URL =
-  "https://data.rbrowser.org/datahub/reference/hg38.gencode.rbrowser.v0.5.9.sqlite";
+  "https://data.rbrowser.org/datahub/reference/hg38.gencode.v45.transcript.rbi";
 
 // ── one-time worker setup ──────────────────────────────────────────────────
 let _worker = null;

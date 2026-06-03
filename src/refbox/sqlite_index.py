@@ -1,10 +1,12 @@
-"""Build a static, read-only SQLite search index from a GTF/GFF3 annotation.
+"""Build a static, read-only RBrowser Index (``.rbi``) from a GTF/GFF3 annotation.
 
-The resulting ``*.sqlite`` file is a self-contained, backend-free search index
-for a web genome / RNA browser. It is meant to be hosted as a static file and
-queried directly from the browser via SQLite WASM + an HTTP Range VFS, so the
-schema is optimised for *search* (exact / prefix / fuzzy / alias), not for the
-positional range queries that ``tabix`` already serves.
+The resulting ``*.rbi`` file is a self-contained, backend-free search index for
+a web genome / RNA browser — internally an ordinary SQLite database with FTS5
+search tables (``.rbi`` = "RBrowser Index"; the new extension just signals the
+format/use). It is meant to be hosted as a static file and queried directly from
+the browser via SQLite WASM + an HTTP Range VFS, so the schema is optimised for
+*search* (exact / prefix / fuzzy / alias), not for the positional range queries
+that ``tabix`` already serves.
 
 Pipeline
 --------
@@ -981,7 +983,8 @@ def build_sqlite_index(
 ) -> Path:
     """Build the read-only SQLite search index. Returns the output path.
 
-    ``output`` defaults to ``<input-stem>.rbrowser.sqlite`` next to the input.
+    ``output`` defaults to ``<input-stem>.rbi`` next to the input (``.rbi`` =
+    "RBrowser Index" — a SQLite + FTS5 file served via SQLite-WASM / HTTP Range).
     ``synonyms`` optionally points at an HGNC-style TSV whose alias/prev symbols
     are injected as ``gene_synonym`` aliases (so ``OCT4`` resolves to POU5F1).
     ``rnacentral`` optionally points at an RNAcentral genome-coordinates GFF3
@@ -1003,7 +1006,7 @@ def build_sqlite_index(
             if stem.lower().endswith(s):
                 stem = stem[: -len(s)]
                 break
-        output = input_path.with_name(stem + ".rbrowser.sqlite")
+        output = input_path.with_name(stem + ".rbi")
     output = Path(output)
     if output.exists() and not force:
         raise FileExistsError(

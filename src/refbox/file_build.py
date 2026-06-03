@@ -156,10 +156,10 @@ def build_gxf(
 ) -> Path:
     """Sort + bgzip + tabix a GTF/GFF3 file. Returns the ``.gz`` path.
 
-    When ``sqlite=True`` a read-only SQLite search index is also built next to
-    the output (``<stem>.rbrowser.sqlite`` unless ``sqlite_out`` is given). The
-    index powers the browser's transcript/gene search; the tabix file still
-    serves positional range queries.
+    When ``sqlite=True`` a read-only RBrowser Index (``.rbi``) is also built next
+    to the output (``<stem>.rbi`` unless ``sqlite_out`` is given). The index
+    powers the browser's transcript/gene search; the tabix file still serves
+    positional range queries.
     """
     ext = ".gtf"
     lower = input_gxf.name.lower().rstrip(".gz")
@@ -201,7 +201,7 @@ def build_gxf(
             for s in (".gz", ".gtf", ".gff3", ".gff", ".sorted"):
                 if base.endswith(s):
                     base = base[: -len(s)]
-            sqlite_out = output.with_name(base + ".rbrowser.sqlite")
+            sqlite_out = output.with_name(base + ".rbi")
         # Index from the original input (full attribute set), not the sorted
         # plain temp which has already been removed below.
         build_sqlite_index(
