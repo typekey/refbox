@@ -9,6 +9,9 @@ set -u
 RESULTS=/home/leizheng/workspace/rbrowser/reference/results
 HGNC=/home/leizheng/workspace/rbrowser/gene_info/rawdata/hgnc_complete_set.txt
 BUILD=/home/leizheng/workspace/rbrowser/reference/refbox/script/build_rbrowser_sqlite_index.py
+# Use an interpreter that has refbox importable (the src tree) and its deps.
+# Override with e.g.  PY=python3 build_all_species_sqlite.sh
+PY="${PY:-/home/leizheng/biotools/mamba/bin/python}"
 
 ok=0; fail=0; skip=0
 for raw in "$RESULTS"/*/*/raw; do
@@ -37,7 +40,7 @@ for raw in "$RESULTS"/*/*/raw; do
 
   echo "=========================================================="
   echo "[build] $species/$assembly  annot=$(basename "$annot")  rna=${rna:+$(basename "$rna")}"
-  if python3 "$BUILD" "${args[@]}" > "$asmdir/build/build_sqlite.log" 2>&1; then
+  if "$PY" "$BUILD" "${args[@]}" > "$asmdir/build/build_sqlite.log" 2>&1; then
     sz=$(du -h "$out" | cut -f1)
     echo "  OK -> $out ($sz)"
     ok=$((ok+1))
