@@ -74,6 +74,104 @@ _SEPARATORS = re.compile(r"[\s_.\-]+")
 # leading "(human) " / "(Homo sapiens) " species tag on RNAcentral descriptions
 _RNA_SPECIES_PREFIX = re.compile(r"^\([^)]*\)\s*")
 
+# ── RNAcentral description → short, recognizable name ──────────────────────────
+# The RNAcentral genome-coordinates GFF3 carries only a free-text ``description``
+# (no short symbol field). Raw descriptions are long and noisy for display
+# ("DEAD/H-box helicase 11 like 11 (pseudogene), transcript variant 1 (DDX11L11)").
+# clean_rnacentral_name() distills a short label per RNA type while the full
+# description is still kept as a searchable alias (so recall is unchanged).
+_RNA_PIR    = re.compile(r"\bpiR-[A-Za-z0-9\-]+", re.I)
+_RNA_MIR    = re.compile(r"\b(?:hsa-)?(miR-[A-Za-z0-9\-]+)", re.I)   # mature
+_RNA_PREMIR = re.compile(r"\b(?:hsa-)?(mir-[0-9][A-Za-z0-9]*)", re.I)  # precursor
+_RNA_LNC    = re.compile(
+    r"\b(?:lnc-[A-Za-z0-9:.\-]+|LINC\d+(?::\d+)?|NONHSA[TG]\d+(?:\.\d+)?|HSALNT\d+)")
+_RNA_TRNA   = re.compile(r"\btRNA-[A-Za-z]{3}(?:-[A-Za-z0-9]+)?")
+_RNA_SNOR   = re.compile(r"\b(SNOR[ADL][A-Za-z0-9@.\-]*|ACA\d+\w*)")
+_RNA_USNRNA = re.compile(r"\b(U\d+[a-z]*)\b")
+_RNA_TRAIL  = re.compile(r"\(([^()]*)\)\s*$")          # trailing (SYMBOL)
+_RNA_ENSID  = re.compile(r"^ENS[A-Z]*\d", re.I)
+_RNA_SYMTOK = re.compile(r"^[A-Za-z][\w@.\-]*$")        # a bare gene-symbol token
+# trailing parenthetical that is an id-list / annotation, not a name → strip it
+_RNA_IDPAREN = re.compile(
+    r"\s*\((?:ENS[A-Z]*\d|PDB |multiple genes|head to head)[^()]*\)\s*$", re.I)
+# GFF3 percent-encodings seen in RNAcentral descriptions
+_RNA_PCT = {"%2C": ",", "%26": "&", "%3B": ";", "%3D": "=", "%25": "%"}
+
+
+def _rna_unescape(s: str) -> str:
+    for code, ch in _RNA_PCT.items():
+        s = s.replace(code, ch)
+    return s
+
+
+def _rna_trailing_symbol(s: str) -> "str | None":
+    """If the description ends in ``(SYMBOL)`` where SYMBOL is a single bare
+    gene-symbol token (not an Ensembl id / id-list / free text), return it."""
+    m = _RNA_TRAIL.search(s)
+    if not m:
+        return None
+    inner = m.group(1).strip()
+    if " " in inner or "," in inner or _RNA_ENSID.match(inner):
+        return None
+    if _RNA_SYMTOK.match(inner) and any(c.isalpha() for c in inner):
+        return inner
+    return None
+
+
+def clean_rnacentral_name(description: str, rtype: str) -> "tuple[str, str]":
+    """Distill an RNAcentral ``description`` into ``(short_name, full_desc)``.
+
+    ``short_name`` is a compact, recognizable label suitable for the
+    gene_name/transcript_name columns (e.g. ``miR-34a-5p``, ``DDX11L11``,
+    ``pre-mir-571``, ``lnc-OR4F29-11-7``, ``piR-hsa-4818588``). ``full_desc`` is
+    the species-stripped, percent-unescaped description, kept as a searchable
+    alias so nothing becomes unfindable. Falls back to ``full_desc`` when no
+    short symbol can be derived (generic names like ``5S ribosomal RNA``)."""
+    s = _rna_unescape(description or "").strip()
+    s = _RNA_SPECIES_PREFIX.sub("", s).strip()        # drop "(human) "
+    s = re.sub(r"^Homo_sapiens\s+", "", s)            # drop redundant binomial
+    # full description for the alias: drop a trailing id-list/annotation paren
+    full = s
+    prev = None
+    while full != prev:
+        prev, full = full, _RNA_IDPAREN.sub("", full).strip()
+
+    rt = (rtype or "").lower()
+    short = None
+    if "pirna" in rt:
+        m = _RNA_PIR.search(s)
+        short = m.group(0) if m else None
+    elif rt == "mirna":
+        m = _RNA_MIR.search(s)
+        short = m.group(1) if m else None
+    elif rt in ("pre_mirna", "precursor_rna", "primary_transcript"):
+        m = _RNA_PREMIR.search(s)
+        short = "pre-" + m.group(1) if m else None
+    elif rt == "trna":
+        m = _RNA_TRNA.search(s)
+        short = m.group(0) if m else None
+    elif rt in ("snorna", "scarna"):
+        short = _rna_trailing_symbol(s)
+        if not short:
+            m = _RNA_SNOR.search(s)
+            short = m.group(1) if m else None
+    elif rt == "snrna":
+        short = _rna_trailing_symbol(s)
+        if not short:
+            m = _RNA_USNRNA.search(s)
+            short = m.group(1) if m else None
+    elif rt == "lncrna":
+        short = _rna_trailing_symbol(s)
+        if not short:
+            m = _RNA_LNC.search(s)
+            if m:
+                short = m.group(0).replace(":", "-")
+    if not short:
+        short = _rna_trailing_symbol(s)
+    if not short:
+        short = full
+    return short, full
+
 # alias types that are *names* (worth substring/fuzzy matching), as opposed to
 # IDs/accessions (gene_id, transcript_id, rnacentral_id/_db, havana, ccds,
 # protein_id, hgnc, dbxref, refseq) which users search exactly or by prefix, not
@@ -336,14 +434,18 @@ def parse_rnacentral(path: Path, *, verbose: bool = False) -> dict[str, "_Tx"]:
                 t.feature_type = rtype
                 t.biotype = rtype
                 t.transcript_name = name
-                # The RNAcentral `description` is the human-readable RNA name
-                # ("(human) tRNA-Ala", "… piRNA piR-hsa-4818588", …). Strip the
-                # leading "(species) " and use it as the displayed gene_name so
-                # it shows up and is fuzzy-searchable (it joins the names corpus).
-                desc = _RNA_SPECIES_PREFIX.sub("", attrs.get("description") or "").strip()
-                if desc:
-                    t.gene_name = desc
-                    _add_alias(t.aliases, desc, "description")
+                # The RNAcentral `description` is a long free-text label
+                # ("DEAD/H-box helicase 11 like 11 …(DDX11L11)", "(human) tRNA-Ala").
+                # Distill a short, recognizable name for display (gene_name +
+                # transcript_name), and keep the FULL description as a searchable
+                # alias so every word stays findable (fuzzy recall unchanged).
+                short, full = clean_rnacentral_name(attrs.get("description") or "", rtype)
+                if short:
+                    t.gene_name = short
+                    t.transcript_name = short
+                    _add_alias(t.aliases, short, "transcript_name")
+                if full and full != short:
+                    _add_alias(t.aliases, full, "description")
                 _add_alias(t.aliases, tid, "rnacentral_id")
                 _add_alias(t.aliases, name, "rnacentral_id")
                 base = strip_version(tid)          # URS…_9606.1 -> URS…_9606

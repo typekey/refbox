@@ -357,17 +357,46 @@ def test_rnacentral_merge(tmp_path: Path):
     for q in ["URS000035F234_9606.0", "URS000035F234_9606", "URS000035F234"]:
         r = si.search(con, q, limit=3)
         assert r and r[0]["transcript_id"].startswith("URS000035F234")
-    # exon collected, type recorded as biotype/feature_type; description -> gene_name
+    # exon collected, type/biotype recorded; the long description is distilled to
+    # a SHORT recognizable gene_name (piRNA → its piR- id), not the full text.
     row = con.execute(
-        "SELECT feature_type, biotype, exon_count, source, gene_name FROM feature "
-        "WHERE transcript_id='URS000035F234_9606.0'").fetchone()
-    assert row == ("piRNA", "piRNA", 1, "RNAcentral", "piRNA piR-hsa-42")  # "(human) " stripped
-    # the description is searchable: exact, prefix, and substring (trigram)
+        "SELECT feature_type, biotype, exon_count, source, gene_name, transcript_name "
+        "FROM feature WHERE transcript_id='URS000035F234_9606.0'").fetchone()
+    assert row == ("piRNA", "piRNA", 1, "RNAcentral", "piR-hsa-42", "piR-hsa-42")
+    # the short name resolves exactly; the FULL description is kept as an alias so
+    # every word stays findable (exact, prefix, and interior substring).
+    assert si.search(con, "piR-hsa-42", limit=3)[0]["matched_field"] in (
+        "transcript_name_exact", "alias_exact")
     assert si.search(con, "piRNA piR-hsa-42", limit=3)[0]["matched_field"] == "alias_exact"
     assert si.search(con, "piR-hsa", limit=3)            # prefix/substring
     assert any(r["transcript_id"].startswith("URS000035F234")
                for r in si.search(con, "hsa-42", limit=5))   # interior substring → trigram
     con.close()
+
+
+def test_clean_rnacentral_name():
+    """The long free-text description is distilled to a short, recognizable name
+    per RNA type; the four canonical user-reported patterns must hold exactly."""
+    cases = [
+        # (description, type) -> expected short name
+        ("DEAD/H-box helicase 11 like 11 (pseudogene)%2C transcript variant 1 (DDX11L11)",
+         "lncRNA", "DDX11L11"),
+        ("(human) non-protein coding lnc-OR4F29-11:7", "lncRNA", "lnc-OR4F29-11-7"),
+        ("(human) mir-571 microRNA precursor family", "pre_miRNA", "pre-mir-571"),
+        ("(human) hsa-miR-34a-5p", "miRNA", "miR-34a-5p"),
+        ("(human) Homo_sapiens piRNA piR-hsa-4818588", "piRNA", "piR-hsa-4818588"),
+        ("(human) tRNA-Ala", "tRNA", "tRNA-Ala"),
+        ("(human) microRNA hsa-mir-6859 precursor (hsa-mir-6859 1 to 4)",
+         "pre_miRNA", "pre-mir-6859"),
+        ("(human) small nucleolar RNA%2C C/D box 167 (SNORD167)", "snoRNA", "SNORD167"),
+        ("non-protein coding LINC00115:34", "lncRNA", "LINC00115-34"),
+        ("Y RNA (ENSG00000200344.1)", "Y_RNA", "Y RNA"),           # id-list paren stripped
+        ("5S ribosomal RNA", "rRNA", "5S ribosomal RNA"),          # no symbol → full name
+    ]
+    for desc, rtype, expected in cases:
+        short, full = si.clean_rnacentral_name(desc, rtype)
+        assert short == expected, f"{desc!r} ({rtype}) -> {short!r}, want {expected!r}"
+        assert "(human)" not in full and "%2C" not in full         # cleaned full kept too
 
 
 def test_rnacentral_chrom_harmonization(tmp_path: Path):
