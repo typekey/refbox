@@ -8,7 +8,7 @@ summary plus an aggregate table.
 Example
 -------
     python test_rbrowser_sqlite_search.py \
-        --db hg38.gencode.v45.transcript.rbi \
+        --db hg38.gencode.v45.transcript.rba \
         --queries TP53 ENST00000269305 p53 BRCA1 MALAT1 ACTB \
         --repeat 100 --limit 10
 """
@@ -43,8 +43,8 @@ def _fmt_region(d: dict) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description="Benchmark RBrowser Index (.rbi) search.")
-    ap.add_argument("--db", required=True, help="path to the .rbi index")
+    ap = argparse.ArgumentParser(description="Benchmark RBrowser Index (.rba) search.")
+    ap.add_argument("--db", required=True, help="path to the .rba index")
     ap.add_argument("--queries", nargs="+", required=True, help="query strings")
     ap.add_argument("--repeat", type=int, default=100,
                     help="timed repetitions per query (default 100)")

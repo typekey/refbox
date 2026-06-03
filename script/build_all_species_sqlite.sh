@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Build an RBrowser Index (.rbi: SQLite + FTS5 search) for every species/assembly
-# that has an annotation file, writing {Species}/{Assembly}/build/annotation.rbi.
+# Build an RBrowser Index (.rba: SQLite + FTS5 search) for every species/assembly
+# that has an annotation file, writing {Species}/{Assembly}/build/annotation.rba.
 #
 # Per assembly: prefer GFF3 over GTF; merge the local (already assembly-matched)
 # RNAcentral GFF3 when present (normalized preferred); inject HGNC synonyms for
@@ -30,7 +30,7 @@ for raw in "$RESULTS"/*/*/raw; do
   [ -s "$raw/rnacentral.normalized.gff3" ] && rna="$raw/rnacentral.normalized.gff3"
   [ -z "$rna" ] && [ -s "$raw/rnacentral.gff3" ] && rna="$raw/rnacentral.gff3"
 
-  out="$asmdir/build/annotation.rbi"
+  out="$asmdir/build/annotation.rba"
   mkdir -p "$asmdir/build"
 
   args=(--input "$annot" --output "$out" --species "$species" --genome "$assembly"

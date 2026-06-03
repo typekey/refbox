@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Build a static RBrowser Index (.rbi) from a GTF/GFF/GFF3 file.
+"""Build a static RBrowser Index (.rba) from a GTF/GFF/GFF3 file.
 
-A ``.rbi`` ("RBrowser Index") is a self-contained SQLite + FTS5 search index,
+A ``.rba`` ("RBrowser Index") is a self-contained SQLite + FTS5 search index,
 served as a static file and queried in-browser via SQLite-WASM / HTTP Range VFS.
 
 Standalone CLI wrapper around :mod:`refbox.sqlite_index`. It works whether or
@@ -12,7 +12,7 @@ Example
 -------
     python build_rbrowser_sqlite_index.py \
         --input gencode.v45.annotation.gtf.gz \
-        --output hg38.gencode.v45.transcript.rbi \
+        --output hg38.gencode.v45.transcript.rba \
         --source-name GENCODE --species human --genome hg38 \
         --annotation-version v45 --force --verbose
 """
@@ -44,10 +44,10 @@ def _load_module():
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
-        description="Build a read-only RBrowser Index (.rbi) from GTF/GFF3.")
+        description="Build a read-only RBrowser Index (.rba) from GTF/GFF3.")
     ap.add_argument("--input", required=True, help="GTF/GFF/GFF3 (.gz ok)")
     ap.add_argument("--output", default=None,
-                    help="output .rbi path (default: <input>.rbi)")
+                    help="output .rba path (default: <input>.rba)")
     ap.add_argument("--source-name", default="", help="e.g. GENCODE, Ensembl")
     ap.add_argument("--species", default="", help="e.g. human, mouse")
     ap.add_argument("--genome", default="", help="e.g. hg38, GRCh38")

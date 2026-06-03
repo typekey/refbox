@@ -14,7 +14,7 @@ Subcommands
     refbox build -gff ANNOT.gff3 [-o OUT.gff3.gz]
     refbox build -bed FEATURES.bed [-o OUT.bed.gz] [--chrom-sizes FILE | --assembly NAME]
     refbox build -rmsk rmsk.txt.gz [-o OUT_DIR]
-    refbox build -rbi ANNOT.gtf.gz [-o OUT.rbi]   # RBrowser Index (SQLite+FTS5 search)
+    refbox build -rba ANNOT.gtf.gz [-o OUT.rba]   # RBrowser Index (SQLite+FTS5 search)
     refbox build -fa GENOME.fa -gtf ANNOT.gtf -o transcriptome.fa.gz # extract transcriptome
     refbox build -i DIR --assembly GRCh38 [--species NAME]            # directory ingest
     refbox build SOMEFILE        # auto-detect (-i for directories)
@@ -106,7 +106,7 @@ def _dispatch_build(args: argparse.Namespace) -> int:
     sqlite_in = Path(args.sqlite) if args.sqlite else None
 
     annot = gtf or gff
-    # Standalone RBrowser Index build: `refbox build -rbi ANNOT.gtf[.gz]`
+    # Standalone RBrowser Index build: `refbox build -rba ANNOT.gtf[.gz]`
     if sqlite_in is not None:
         from .sqlite_index import build_sqlite_index
         build_sqlite_index(
@@ -204,35 +204,37 @@ def main(argv: list[str] | None = None) -> int:
     p_bd.add_argument("-gff", "--gff", help="GFF3 input")
     p_bd.add_argument("-bed", "--bed", help="BED input")
     p_bd.add_argument("-rmsk", "--rmsk", help="UCSC rmsk.txt[.gz] input")
-    p_bd.add_argument("-rbi", "--rbi", "-sqlite", "--sqlite", dest="sqlite", default=None,
+    p_bd.add_argument("-rba", "--rba", "-rbi", "--rbi", "-sqlite", "--sqlite",
+                      dest="sqlite", default=None,
                       help="GTF/GFF3 input → build a standalone RBrowser Index "
-                           "(.rbi: a SQLite + FTS5 search index)")
+                           "(.rba: a SQLite + FTS5 search index)")
     p_bd.add_argument("-i", "--ingest", help="directory of user files to import")
     p_bd.add_argument("--assembly", default=None,
                       help="assembly identifier (folder name / chrom.sizes lookup)")
     p_bd.add_argument("--species", default=None, help="species name (-i only)")
-    p_bd.add_argument("--with-rbi", "--with-sqlite", dest="with_sqlite", action="store_true",
-                      help="for -gtf/-gff: also emit an RBrowser Index (.rbi) "
+    p_bd.add_argument("--with-rba", "--with-rbi", "--with-sqlite", dest="with_sqlite",
+                      action="store_true",
+                      help="for -gtf/-gff: also emit an RBrowser Index (.rba) "
                            "alongside the sorted/bgzip/tabix outputs")
     p_bd.add_argument("--source-name", default=None,
-                      help="annotation source label stored in .rbi metadata "
+                      help="annotation source label stored in .rba metadata "
                            "(e.g. GENCODE, Ensembl)")
     p_bd.add_argument("--species-name", default=None,
-                      help="species label stored in .rbi metadata")
+                      help="species label stored in .rba metadata")
     p_bd.add_argument("--genome", default=None,
-                      help="genome/assembly label stored in .rbi metadata (e.g. hg38)")
+                      help="genome/assembly label stored in .rba metadata (e.g. hg38)")
     p_bd.add_argument("--annotation-version", default=None,
-                      help="annotation version stored in .rbi metadata (e.g. v45)")
+                      help="annotation version stored in .rba metadata (e.g. v45)")
     p_bd.add_argument("--synonyms-file", "--synonyms", default=None, dest="synonyms_file",
                       help="HGNC-style TSV (symbol/alias_symbol/prev_symbol/"
                            "ensembl_gene_id) to inject as gene_synonym aliases "
-                           "(.rbi builds only)")
+                           "(.rba builds only)")
     p_bd.add_argument("--rnacentral", default=None,
                       help="RNAcentral genome-coordinates GFF3 (use the "
-                           "chrom-normalized one) to merge into the .rbi index "
-                           "(.rbi builds only)")
+                           "chrom-normalized one) to merge into the .rba index "
+                           "(.rba builds only)")
     p_bd.add_argument("--fuzzy-scope", choices=["names", "all"], default="names",
-                      help=".rbi trigram corpus: 'names' (default; names + "
+                      help=".rba trigram corpus: 'names' (default; names + "
                            "synonyms only, IDs excluded) or 'all' (include IDs)")
     p_bd.add_argument("--chrom-sizes", default=None,
                       help="chrom.sizes file for bigBed conversion")

@@ -6,7 +6,7 @@ and a few example transcript records.
 
 Example
 -------
-    python inspect_rbrowser_sqlite_index.py --db hg38.gencode.v45.transcript.rbi
+    python inspect_rbrowser_sqlite_index.py --db hg38.gencode.v45.transcript.rba
 """
 
 from __future__ import annotations
@@ -43,7 +43,7 @@ def _human(n: int) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Inspect an RBrowser SQLite index.")
-    ap.add_argument("--db", required=True, help="path to the .rbi index")
+    ap.add_argument("--db", required=True, help="path to the .rba index")
     args = ap.parse_args(argv)
 
     m = _import_mod()

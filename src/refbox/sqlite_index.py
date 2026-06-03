@@ -1,8 +1,8 @@
-"""Build a static, read-only RBrowser Index (``.rbi``) from a GTF/GFF3 annotation.
+"""Build a static, read-only RBrowser Index (``.rba``) from a GTF/GFF3 annotation.
 
-The resulting ``*.rbi`` file is a self-contained, backend-free search index for
+The resulting ``*.rba`` file is a self-contained, backend-free search index for
 a web genome / RNA browser — internally an ordinary SQLite database with FTS5
-search tables (``.rbi`` = "RBrowser Index"; the new extension just signals the
+search tables (``.rba`` = "RBrowser Index"; the new extension just signals the
 format/use). It is meant to be hosted as a static file and queried directly from
 the browser via SQLite WASM + an HTTP Range VFS, so the schema is optimised for
 *search* (exact / prefix / fuzzy / alias), not for the positional range queries
@@ -983,7 +983,7 @@ def build_sqlite_index(
 ) -> Path:
     """Build the read-only SQLite search index. Returns the output path.
 
-    ``output`` defaults to ``<input-stem>.rbi`` next to the input (``.rbi`` =
+    ``output`` defaults to ``<input-stem>.rba`` next to the input (``.rba`` =
     "RBrowser Index" — a SQLite + FTS5 file served via SQLite-WASM / HTTP Range).
     ``synonyms`` optionally points at an HGNC-style TSV whose alias/prev symbols
     are injected as ``gene_synonym`` aliases (so ``OCT4`` resolves to POU5F1).
@@ -1006,7 +1006,7 @@ def build_sqlite_index(
             if stem.lower().endswith(s):
                 stem = stem[: -len(s)]
                 break
-        output = input_path.with_name(stem + ".rbi")
+        output = input_path.with_name(stem + ".rba")
     output = Path(output)
     if output.exists() and not force:
         raise FileExistsError(
