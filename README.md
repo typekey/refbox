@@ -141,6 +141,15 @@ For that, `refbox` can build a **standalone, read-only RBrowser Index** — a
 `.rbi` file — from a GTF/GFF3 that powers exact / prefix-autocomplete /
 fuzzy-substring / alias search.
 
+| | |
+|---|---|
+| **Name** | RBrowser Indexed Annotation Database |
+| **File extension** | `.rbi` |
+| **Storage engine** | SQLite |
+| **Search engine** | SQLite FTS5 |
+| **Access** | static file + SQLite WASM / HTTP Range VFS (no backend) |
+| **Purpose** | static web-friendly gene / transcript / alias search and coordinate lookup |
+
 > **`.rbi` = "RBrowser Index".** Internally it is an ordinary **SQLite database
 > with FTS5** search tables; the dedicated extension just signals the format and
 > its intended use. It is hosted as a **static file** and queried directly from
