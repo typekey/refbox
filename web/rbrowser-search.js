@@ -29,7 +29,7 @@
 import { createDbWorker } from "sql.js-httpvfs";
 
 const DB_URL =
-  "https://data.rbrowser.org/datahub/reference/hg38.gencode.rbrowser.v0.5.8.sqlite";
+  "https://data.rbrowser.org/datahub/reference/hg38.gencode.rbrowser.v0.5.9.sqlite";
 
 // ── one-time worker setup ──────────────────────────────────────────────────
 let _worker = null;

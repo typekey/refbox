@@ -412,10 +412,13 @@ def test_rnacentral_display_name():
         ("non-coding RNA", "non-coding RNA", URS),
         # long sentence → URS fallback
         (None, "family with sequence similarity 138 member A", URS),
+        # verbose stock phrase → abbreviated short form (not URS)
         ("Metazoan signal recognition particle RNA",
-         "Metazoan signal recognition particle RNA", URS),
-        # short multi-word → spaces collapsed to "-"
-        (None, "5S ribosomal RNA", "5S-ribosomal-RNA"),
+         "Metazoan signal recognition particle RNA", "Metazoan-SRP-RNA"),
+        # short multi-word → abbreviated + spaces collapsed to "-"
+        (None, "5S ribosomal RNA", "5S-rRNA"),
+        (None, "partial 16S ribosomal RNA", "16S-rRNA"),
+        (None, "Eukaryotic large subunit ribosomal RNA", "Eukaryotic-LSU-rRNA"),
         ("H/ACA snoRNA", "H/ACA snoRNA", "H-ACA-snoRNA"),
     ]
     for short, full, expected in cases:

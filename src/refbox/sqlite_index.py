@@ -194,6 +194,28 @@ _RNA_GENERIC = {
 }
 
 
+# common verbose phrases → compact forms, applied to the DISPLAY name only
+# (the full unabbreviated description is still kept as a searchable alias).
+_RNA_ABBREV = [
+    (re.compile(r"\bribosomal RNA\b", re.I), "rRNA"),
+    (re.compile(r"\bsmall subunit\b", re.I), "SSU"),
+    (re.compile(r"\blarge subunit\b", re.I), "LSU"),
+    (re.compile(r"\bsignal recognition particle\b", re.I), "SRP"),
+    (re.compile(r"\bspliceosomal RNA\b", re.I), "snRNA"),
+    (re.compile(r"\bsmall nucleolar RNA\b", re.I), "snoRNA"),
+    (re.compile(r"\s+from Homo[ _]sapiens\b", re.I), ""),  # redundant trailing species
+    (re.compile(r"^partial\s+", re.I), ""),          # drop a leading "partial "
+]
+
+
+def _rna_abbreviate(s: str) -> str:
+    """``5S ribosomal RNA`` → ``5S rRNA``, ``… large subunit ribosomal RNA`` →
+    ``… LSU rRNA``. Display-only shortening of stock phrases."""
+    for rx, repl in _RNA_ABBREV:
+        s = rx.sub(repl, s)
+    return re.sub(r"\s{2,}", " ", s).strip()
+
+
 def _rna_sanitize(s: str) -> str:
     """Collapse whitespace / special characters to "-" so a name has no spaces
     or odd symbols (``H/ACA snoRNA`` → ``H-ACA-snoRNA``, ``5S ribosomal RNA`` →
@@ -211,7 +233,7 @@ def rnacentral_display_name(short: str, full: str, accession: str) -> str:
     """Pick the label for gene_name/transcript_name: a sanitized short symbol
     when one is short, specific, and clean enough; otherwise the URS accession
     (e.g. ``URS00005E40B1_9606``) — never a long sentence or a bare type word."""
-    san = _rna_sanitize(short or full or "")
+    san = _rna_sanitize(_rna_abbreviate(short or full or ""))
     if san and len(san) <= _RNA_MAX_NAME and san.lower() not in _RNA_GENERIC:
         return san
     return accession
