@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Search a lightweight RBrowser Annotation Index (.rbai).
+"""Search a lightweight RBrowser Index (.rbi).
 
 Shows, per query, the resolution mode (exact / prefix / normalized / gram3), the
 wall time in ms, the number of results, and the top hit(s). Stdlib only.
@@ -7,7 +7,7 @@ wall time in ms, the number of results, and the top hit(s). Stdlib only.
 Example
 -------
     python search_lite_rbrowser_annotation_index.py \
-        --db annotation.rbai \
+        --db annotation.rbi \
         --queries TP53 TP5 p53 ENST00000269305 ENST00000269305.10 BRCA1 protein_coding \
         --limit 10
 """
@@ -39,8 +39,8 @@ _SHOW = ("feature_type", "gene_name", "gene_id", "transcript_name",
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description="Search a .rbai lite index.")
-    ap.add_argument("--db", required=True, help="path to the .rbai index")
+    ap = argparse.ArgumentParser(description="Search a .rbi lite index.")
+    ap.add_argument("--db", required=True, help="path to the .rbi index")
     ap.add_argument("--queries", nargs="+", required=True, help="query strings")
     ap.add_argument("--limit", type=int, default=10)
     ap.add_argument("--show", type=int, default=1,

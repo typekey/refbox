@@ -53,3 +53,6 @@ env/
 /Francisella_tularensis/
 /SARS_CoV_2/
 /Human_mitochondria/
+
+# MkDocs build output
+site/

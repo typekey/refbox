@@ -2,6 +2,8 @@ species:
   Homo_sapiens:
     GRCh38:
       enabled: true
+      cytoband:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/hg38/database/cytoBand.txt.gz
       gencode_version: 44
       ucsc_db: hg38
       genome:
@@ -24,6 +26,8 @@ species:
         url: https://downloads.wenglab.org/V3/GRCh38-cCREs.bed
     GRCh37:
       enabled: false
+      cytoband:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/cytoBand.txt.gz
       gencode_version: 44
       ucsc_db: hg19
       genome:
@@ -48,6 +52,8 @@ species:
       ccre: null
     hg18:
       enabled: false
+      cytoband:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/hg18/database/cytoBand.txt.gz
       ucsc_db: hg18
       genome:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/hg18/bigZips/hg18.fa.gz
@@ -63,6 +69,10 @@ species:
       ccre: null
     T2T-CHM13v2:
       enabled: false
+      cytoband:
+        # T2T/hs1 has no cytoBand.txt.gz; UCSC serves it as a bigBed
+        # ("Cytobands Mapped from hg38/GRCh38"). build_cytoband expands it to TSV.
+        url: https://hgdownload.soe.ucsc.edu/gbdb/hs1/cytoBandMapped/cytoBandMapped.bb
       ucsc_db: hs1
       genome:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/hs1/bigZips/hs1.fa.gz
@@ -80,6 +90,8 @@ species:
   Mus_musculus:
     GRCm38:
       enabled: true
+      cytoband:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/mm10/database/cytoBand.txt.gz
       gencode_version: M23
       ucsc_db: mm10
       genome:
@@ -105,6 +117,8 @@ species:
         url: https://downloads.wenglab.org/V3/mm10-cCREs.bed
     GRCm39:
       enabled: true
+      cytoband:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/mm39/database/cytoBand.txt.gz
       gencode_version: M34
       ucsc_db: mm39
       genome:
@@ -126,6 +140,8 @@ species:
       ccre: null
     mm9:
       enabled: false
+      cytoband:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/mm9/database/cytoBand.txt.gz
       ucsc_db: mm9
       genome:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/mm9/bigZips/mm9.fa.gz
@@ -147,6 +163,8 @@ species:
   Pan_troglodytes:
     panTro4:
       enabled: false
+      cytoband:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/panTro4/database/cytoBandIdeo.txt.gz
       ucsc_db: panTro4
       genome:
         url: https://ftp.ensembl.org/pub/release-111/fasta/pan_troglodytes/dna/Pan_troglodytes.Pan_tro_3.0.dna.toplevel.fa.gz
@@ -170,6 +188,8 @@ species:
   Pan_paniscus:
     panPan2:
       enabled: false
+      cytoband:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/panPan2/database/cytoBandIdeo.txt.gz
       ucsc_db: panPan2
       genome:
         url: https://ftp.ensembl.org/pub/release-111/fasta/pan_paniscus/dna/Pan_paniscus.panpan1.1.dna.toplevel.fa.gz
@@ -193,6 +213,8 @@ species:
   Gorilla_gorilla:
     gorGor4:
       enabled: false
+      cytoband:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/gorGor4/database/cytoBandIdeo.txt.gz
       ucsc_db: gorGor4
       genome:
         url: https://ftp.ensembl.org/pub/release-111/fasta/gorilla_gorilla/dna/Gorilla_gorilla.gorGor4.dna.toplevel.fa.gz
@@ -216,6 +238,8 @@ species:
       ensembl_release: 111
     gorGor6:
       enabled: false
+      cytoband:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/gorGor6/database/cytoBandIdeo.txt.gz
       ucsc_db: gorGor6
       genome:
         url: https://ftp.ensembl.org/pub/release-111/fasta/gorilla_gorilla/dna/Gorilla_gorilla.gorGor4.dna.toplevel.fa.gz
@@ -239,6 +263,7 @@ species:
   Macaca_fascicularis:
     GCA_011100615.1:
       enabled: false
+      cytoband: null
       genome:
         url: https://ftp.ensembl.org/pub/release-111/fasta/macaca_fascicularis/dna/Macaca_fascicularis.Macaca_fascicularis_6.0.dna.toplevel.fa.gz
       annotation_gff3:
@@ -261,6 +286,8 @@ species:
   Bos_taurus:
     bosTau8:
       enabled: false
+      cytoband:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/bosTau8/database/cytoBandIdeo.txt.gz
       ucsc_db: bosTau8
       genome:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/bosTau8/bigZips/bosTau8.fa.gz
@@ -279,6 +306,8 @@ species:
       ccre: null
     bosTau9:
       enabled: false
+      cytoband:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/bosTau9/database/cytoBandIdeo.txt.gz
       ucsc_db: bosTau9
       genome:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/bosTau9/bigZips/bosTau9.fa.gz
@@ -299,6 +328,8 @@ species:
   Sus_scrofa:
     susScr11:
       enabled: false
+      cytoband:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/susScr11/database/cytoBandIdeo.txt.gz
       ucsc_db: susScr11
       genome:
         url: https://ftp.ensembl.org/pub/release-111/fasta/sus_scrofa/dna/Sus_scrofa.Sscrofa11.1.dna.toplevel.fa.gz
@@ -323,6 +354,8 @@ species:
   Canis_familiaris:
     canFam3:
       enabled: false
+      cytoband:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/canFam3/database/cytoBandIdeo.txt.gz
       ucsc_db: canFam3
       genome:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/canFam3/bigZips/canFam3.fa.gz
@@ -341,6 +374,8 @@ species:
       ccre: null
     canFam4:
       enabled: false
+      cytoband:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/canFam4/database/cytoBandIdeo.txt.gz
       ucsc_db: canFam4
       genome:
         url: https://ftp.ensembl.org/pub/release-111/fasta/canis_lupus_familiarisgsd/dna/Canis_lupus_familiarisgsd.UU_Cfam_GSD_1.0.dna.toplevel.fa.gz
@@ -363,6 +398,8 @@ species:
       ensembl_release: 111
     canFam5:
       enabled: false
+      cytoband:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/canFam5/database/cytoBandIdeo.txt.gz
       ucsc_db: canFam5
       genome:
         url: https://ftp.ensembl.org/pub/release-111/fasta/canis_lupus_familiaris/dna/Canis_lupus_familiaris.ROS_Cfam_1.0.dna.toplevel.fa.gz
@@ -386,6 +423,8 @@ species:
   Rattus_norvegicus:
     rn6:
       enabled: false
+      cytoband:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/rn6/database/cytoBand.txt.gz
       ucsc_db: rn6
       genome:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/rn6/bigZips/rn6.fa.gz
@@ -408,6 +447,8 @@ species:
       ccre: null
     rn7:
       enabled: false
+      cytoband:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/rn7/database/cytoBandIdeo.txt.gz
       ucsc_db: rn7
       genome:
         url: https://ftp.ensembl.org/pub/release-111/fasta/rattus_norvegicus/dna/Rattus_norvegicus.mRatBN7.2.dna.toplevel.fa.gz
@@ -432,6 +473,8 @@ species:
   Gallus_gallus:
     galGal6:
       enabled: false
+      cytoband:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/galGal6/database/cytoBandIdeo.txt.gz
       ucsc_db: galGal6
       genome:
         url: https://ftp.ensembl.org/pub/release-111/fasta/gallus_gallus/dna/Gallus_gallus.bGalGal1.mat.broiler.GRCg7b.dna.toplevel.fa.gz
@@ -455,6 +498,7 @@ species:
       ensembl_release: 111
     GCF_016699485.2:
       enabled: false
+      cytoband: null
       genome:
         url: https://ftp.ensembl.org/pub/release-111/fasta/gallus_gallus/dna/Gallus_gallus.bGalGal1.mat.broiler.GRCg7b.dna.toplevel.fa.gz
       annotation_gff3:
@@ -477,6 +521,8 @@ species:
   Danio_rerio:
     GRCz11:
       enabled: false
+      cytoband:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/danRer11/database/cytoBandIdeo.txt.gz
       ensembl_release: 111
       ucsc_db: danRer11
       genome:
@@ -500,6 +546,8 @@ species:
       ccre: null
     GRCz10:
       enabled: false
+      cytoband:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/danRer10/database/cytoBandIdeo.txt.gz
       ucsc_db: danRer10
       genome:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/danRer10/bigZips/danRer10.fa.gz
@@ -519,6 +567,8 @@ species:
   Drosophila_melanogaster:
     BDGP6.46:
       enabled: false
+      cytoband:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/dm6/database/cytoBand.txt.gz
       ensembl_release: 111
       ucsc_db: dm6
       genome:
@@ -542,6 +592,8 @@ species:
       ccre: null
     dm6:
       enabled: false
+      cytoband:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/dm6/database/cytoBand.txt.gz
       ucsc_db: dm6
       genome:
         url: https://ftp.ensembl.org/pub/release-111/fasta/drosophila_melanogaster/dna/Drosophila_melanogaster.BDGP6.46.dna.toplevel.fa.gz
@@ -565,6 +617,8 @@ species:
       ensembl_release: 111
     dm3:
       enabled: false
+      cytoband:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/dm3/database/cytoBand.txt.gz
       ucsc_db: dm3
       genome:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/dm3/bigZips/dm3.fa.gz
@@ -581,6 +635,7 @@ species:
       ccre: null
     r5.9:
       enabled: false
+      cytoband: null
       genome:
         url: https://ftp.flybase.net/genomes/Drosophila_melanogaster/dmel_r5.9_FB2008_06/fasta/dmel-all-chromosome-r5.9.fasta.gz
       annotation_gff3:
@@ -596,6 +651,8 @@ species:
   Caenorhabditis_elegans:
     ce11:
       enabled: false
+      cytoband:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/ce11/database/cytoBandIdeo.txt.gz
       ucsc_db: ce11
       genome:
         url: https://ftp.ensembl.org/pub/release-111/fasta/caenorhabditis_elegans/dna/Caenorhabditis_elegans.WBcel235.dna.toplevel.fa.gz
@@ -619,6 +676,7 @@ species:
   Lytechinus_variegatus:
     Lvar3.0:
       enabled: false
+      cytoband: null
       genome:
         url: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/018/143/015/GCF_018143015.1_Lvar_3.0/GCF_018143015.1_Lvar_3.0_genomic.fna.gz
       annotation_gff3:
@@ -635,6 +693,7 @@ species:
   Patiria_miniata:
     Pmin3.0:
       enabled: false
+      cytoband: null
       genome:
         url: https://download.echinobase.org/echinobase/Genomics/Pmin3.0/Pmin_3.0.fasta.gz
       rnacentral:
@@ -650,6 +709,7 @@ species:
   Strongylocentrotus_purpuratus:
     Spur5.0:
       enabled: false
+      cytoband: null
       genome:
         url: https://download.echinobase.org/echinobase/Genomics/Spur5.0/Spur_5.0.fasta.gz
       annotation_gff3:
@@ -665,6 +725,8 @@ species:
       ccre: null
     strPur2:
       enabled: false
+      cytoband:
+        url: https://hgdownload.soe.ucsc.edu/goldenPath/strPur2/database/cytoBandIdeo.txt.gz
       ucsc_db: strPur2
       genome:
         url: https://hgdownload.soe.ucsc.edu/goldenPath/strPur2/bigZips/strPur2.fa.gz
@@ -682,6 +744,7 @@ species:
   Arabidopsis_thaliana:
     TAIR10:
       enabled: false
+      cytoband: null
       ensembl_release: 58
       genome:
         url: https://ftp.ensemblgenomes.org/pub/plants/release-58/fasta/arabidopsis_thaliana/dna/Arabidopsis_thaliana.TAIR10.dna.toplevel.fa.gz
@@ -703,6 +766,7 @@ species:
   Oryza_sativa:
     IRGSP-1.0:
       enabled: false
+      cytoband: null
       genome:
         url: https://ftp.ensemblgenomes.org/pub/plants/release-58/fasta/oryza_sativa/dna/Oryza_sativa.IRGSP-1.0.dna.toplevel.fa.gz
       annotation_gff3:
@@ -725,6 +789,7 @@ species:
   Saccharomyces_cerevisiae:
     sacCer3:
       enabled: false
+      cytoband: null
       ucsc_db: sacCer3
       genome:
         url: https://ftp.ensemblgenomes.org/pub/fungi/release-58/fasta/saccharomyces_cerevisiae/dna/Saccharomyces_cerevisiae.R64-1-1.dna.toplevel.fa.gz
@@ -747,6 +812,7 @@ species:
   Schizosaccharomyces_pombe:
     ASM294v2:
       enabled: false
+      cytoband: null
       genome:
         url: https://ftp.ensemblgenomes.org/pub/fungi/release-58/fasta/schizosaccharomyces_pombe/dna/Schizosaccharomyces_pombe.ASM294v2.dna.toplevel.fa.gz
       transcriptome:
@@ -768,6 +834,7 @@ species:
   Coprinopsis_cinerea:
     GCA_000182895.1:
       enabled: false
+      cytoband: null
       genome:
         url: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/182/895/GCA_000182895.1_CC3/GCA_000182895.1_CC3_genomic.fna.gz
       ncbi_accession: GCA_000182895.1
@@ -783,6 +850,7 @@ species:
   Escherichia_coli_K12:
     NC_000913.3:
       enabled: false
+      cytoband: null
       genome:
         url: https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=NC_000913.3&rettype=fasta&retmode=text
       annotation_gff3:
@@ -799,6 +867,7 @@ species:
   Francisella_tularensis:
     NC_008601:
       enabled: false
+      cytoband: null
       genome:
         url: https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=NC_008601&rettype=fasta&retmode=text
       ncbi_accession: NC_008601
@@ -814,6 +883,7 @@ species:
   SARS_CoV_2:
     NC_045512.2:
       enabled: false
+      cytoband: null
       genome:
         url: https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=NC_045512.2&rettype=fasta&retmode=text
       annotation_gff3:
@@ -830,6 +900,7 @@ species:
   Human_mitochondria:
     NC_012920:
       enabled: false
+      cytoband: null
       genome:
         url: https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=NC_012920.1&rettype=fasta&retmode=text
       ncbi_accession: NC_012920.1

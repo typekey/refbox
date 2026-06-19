@@ -1,14 +1,15 @@
-"""Lightweight RBrowser Annotation Index (``.rbai``) — a small, fast, static
-gene/transcript lookup index built from a GTF/GFF3 annotation.
+"""Lightweight RBrowser Index (``.rbi``) — a small, fast, static gene/transcript
+lookup index built from a GTF/GFF3 annotation.
 
-Unlike the full RBrowser Index (``.rba``, SQLite + FTS5 + trigram, ~1 GB), this
-is a *compact lookup* index (a few tens of MB): no FTS5, no trigram, no exon/CDS
-structure, no payload JSON. Search resolves to plain B-tree seeks on a normalized
-``term`` table, so exact / prefix / autocomplete queries are sub-millisecond.
+Unlike the full RBrowser Annotation database (``.rba``, SQLite + FTS5 + trigram +
+annotation structure, ~1 GB), this is a *compact lookup* index (a few tens of
+MB): no FTS5, no trigram, no exon/CDS structure, no payload JSON. Search resolves
+to plain B-tree seeks on a normalized ``term`` table, so exact / prefix /
+autocomplete queries are sub-millisecond.
 
-Internally it is an ordinary SQLite database; the ``.rbai`` extension + the
-``metadata`` rows (format_name = "RBrowser Annotation Index", RBAI) let RBrowser
-verify the format.
+Internally it is an ordinary SQLite database; the ``.rbi`` extension + the
+``metadata`` rows (format_name = "RBrowser Index", RBI) let RBrowser verify the
+format.
 
 Schema
 ------
@@ -34,8 +35,8 @@ from pathlib import Path
 log = logging.getLogger("refbox.lite_index")
 
 SCHEMA_VERSION = 1
-FORMAT_NAME = "RBrowser Annotation Index"
-FORMAT_SHORT_NAME = "RBAI"
+FORMAT_NAME = "RBrowser Index"
+FORMAT_SHORT_NAME = "RBI"
 
 # field → priority (lower = ranked higher). Drives ORDER BY in search.
 FIELD_PRIORITY = {
@@ -446,14 +447,14 @@ def _grams(norm: str) -> "set[str]":
 def build_lite_index(input_path, output=None, *, source_name="", species="",
                      genome="", annotation_version="", enable_gram3=False,
                      force=False, verbose=False) -> Path:
-    """Build a ``.rbai`` lite index from a GTF/GFF/GFF3 (.gz ok) annotation."""
+    """Build a ``.rbi`` lite index from a GTF/GFF/GFF3 (.gz ok) annotation."""
     input_path = Path(input_path)
     if output is None:
         stem = input_path.name
         for ext in (".gz", ".gtf", ".gff3", ".gff"):
             if stem.lower().endswith(ext):
                 stem = stem[: -len(ext)]
-        output = input_path.with_name(stem + ".rbai")
+        output = input_path.with_name(stem + ".rbi")
     output = Path(output)
     if output.exists() and not force:
         raise FileExistsError(f"{output} exists; pass force=True / --force")

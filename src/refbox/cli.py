@@ -4,7 +4,12 @@ Subcommands
 -----------
 ``refbox download`` — only fetch raw files configured in species.yaml.
 ``refbox pull``     — full pipeline for a configured assembly: download (if
-                      missing) + build + test. This is what most users want.
+                      missing) + build + test + publish. This is what most users
+                      want. By default the build/ outputs are flattened to the
+                      published layout ``<Assembly>.<name>`` (pass ``--no-flat``
+                      to keep the build/ + raw/ working tree instead).
+``refbox publish``  — flatten an existing build/ tree to ``<Assembly>.<name>``
+                      and drop raw/ (the publish step ``pull`` runs by default).
 ``refbox test``     — re-run the validators against existing build/ outputs.
 ``refbox build``    — single-file / single-directory build for arbitrary
                       user-supplied inputs (no species.yaml entry needed):
@@ -14,7 +19,8 @@ Subcommands
     refbox build -gff ANNOT.gff3 [-o OUT.gff3.gz]
     refbox build -bed FEATURES.bed [-o OUT.bed.gz] [--chrom-sizes FILE | --assembly NAME]
     refbox build -rmsk rmsk.txt.gz [-o OUT_DIR]
-    refbox build -rba ANNOT.gtf.gz [-o OUT.rba]   # RBrowser Index (SQLite+FTS5 search)
+    refbox build -rba ANNOT.gtf.gz [-o OUT.rba]   # full RBrowser Annotation index (SQLite+FTS5 + annotation)
+    refbox build -rbi ANNOT.gtf.gz [-o OUT.rbi]   # lightweight RBrowser Index (B-tree name->position lookup)
     refbox build -fa GENOME.fa -gtf ANNOT.gtf -o transcriptome.fa.gz # extract transcriptome
     refbox build -i DIR --assembly GRCh38 [--species NAME]            # directory ingest
     refbox build SOMEFILE        # auto-detect (-i for directories)
@@ -27,7 +33,7 @@ import logging
 import sys
 from pathlib import Path
 
-from .build import build_targets
+from .build import build_targets, publish_targets
 from .config import find_species_by_assembly
 from .download import download_targets
 from .test import test_targets
@@ -103,18 +109,29 @@ def _dispatch_build(args: argparse.Namespace) -> int:
         )
         return 0
 
-    sqlite_in = Path(args.sqlite) if args.sqlite else None
+    rba_in = Path(args.rba) if args.rba else None
+    rbi_in = Path(args.rbi) if args.rbi else None
 
     annot = gtf or gff
-    # Standalone RBrowser Index build: `refbox build -rba ANNOT.gtf[.gz]`
-    if sqlite_in is not None:
+    # Standalone full RBrowser Annotation index: `refbox build -rba ANNOT.gtf[.gz]`
+    if rba_in is not None:
         from .sqlite_index import build_sqlite_index
         build_sqlite_index(
-            sqlite_in, out_path, source_name=args.source_name or "",
+            rba_in, out_path, source_name=args.source_name or "",
             species=args.species_name or "", genome=args.genome or "",
             annotation_version=args.annotation_version or "",
             synonyms=args.synonyms_file, rnacentral=args.rnacentral,
             fuzzy_scope=args.fuzzy_scope, force=args.force, verbose=args.verbose,
+        )
+        return 0
+    # Standalone lightweight RBrowser Index: `refbox build -rbi ANNOT.gtf[.gz]`
+    if rbi_in is not None:
+        from .lite_index import build_lite_index
+        build_lite_index(
+            rbi_in, out_path, source_name=args.source_name or "",
+            species=args.species_name or "", genome=args.genome or "",
+            annotation_version=args.annotation_version or "",
+            enable_gram3=not args.no_gram3, force=args.force, verbose=args.verbose,
         )
         return 0
     if fa and annot:
@@ -125,12 +142,26 @@ def _dispatch_build(args: argparse.Namespace) -> int:
         return 0
     if annot:
         fb.build_gxf(
-            annot, out_path, sqlite=args.with_sqlite,
+            annot, out_path, sqlite=args.with_rba,
             source_name=args.source_name or "", species=args.species_name or "",
             genome=args.genome or "", annotation_version=args.annotation_version or "",
             synonyms=args.synonyms_file, rnacentral=args.rnacentral,
             fuzzy_scope=args.fuzzy_scope, force=args.force,
         )
+        # `--with-rbi`: also emit a lightweight .rbi next to the tabix output.
+        if args.with_rbi:
+            from .lite_index import build_lite_index
+            stem = annot.name
+            for ext in (".gz", ".gtf", ".gff3", ".gff"):
+                if stem.lower().endswith(ext):
+                    stem = stem[: -len(ext)]
+            rbi_out = (annot.parent / (stem + ".rbi"))
+            build_lite_index(
+                annot, rbi_out, source_name=args.source_name or "",
+                species=args.species_name or "", genome=args.genome or "",
+                annotation_version=args.annotation_version or "",
+                enable_gram3=not args.no_gram3, force=args.force, verbose=args.verbose,
+            )
         return 0
     if bed:
         fb.build_bed(
@@ -189,6 +220,19 @@ def main(argv: list[str] | None = None) -> int:
                         help="skip auto-download of missing raw files")
     p_pull.add_argument("--no-test", action="store_true",
                         help="skip the post-build test step")
+    p_pull.add_argument("--no-flat", action="store_true",
+                        help="keep the build/ + raw/ layout instead of the "
+                             "default flatten to <Assembly>.<name>")
+
+    p_pub = sub.add_parser(
+        "publish",
+        help="flatten build/ outputs to <Assembly>.<name> and drop raw/",
+    )
+    _common_filters(p_pub)
+    p_pub.add_argument("--keep-build", action="store_true",
+                       help="do not remove the (now-empty) build/ directory")
+    p_pub.add_argument("--keep-raw", action="store_true",
+                       help="do not remove the raw/ directory")
 
     p_tt = sub.add_parser("test", help="validate built outputs")
     _common_filters(p_tt)
@@ -204,27 +248,40 @@ def main(argv: list[str] | None = None) -> int:
     p_bd.add_argument("-gff", "--gff", help="GFF3 input")
     p_bd.add_argument("-bed", "--bed", help="BED input")
     p_bd.add_argument("-rmsk", "--rmsk", help="UCSC rmsk.txt[.gz] input")
-    p_bd.add_argument("-rba", "--rba", "-rbi", "--rbi", "-sqlite", "--sqlite",
-                      dest="sqlite", default=None,
-                      help="GTF/GFF3 input → build a standalone RBrowser Index "
-                           "(.rba: a SQLite + FTS5 search index)")
+    p_bd.add_argument("-rba", "--rba", "-sqlite", "--sqlite",
+                      dest="rba", default=None,
+                      help="GTF/GFF3 input → build a standalone full RBrowser "
+                           "Annotation index (.rba: SQLite + FTS5 search + "
+                           "annotation structure)")
+    p_bd.add_argument("-rbi", "--rbi",
+                      dest="rbi", default=None,
+                      help="GTF/GFF3 input → build a standalone lightweight "
+                           "RBrowser Index (.rbi: compact B-tree name->position "
+                           "lookup, no FTS5/annotation structure)")
     p_bd.add_argument("-i", "--ingest", help="directory of user files to import")
     p_bd.add_argument("--assembly", default=None,
                       help="assembly identifier (folder name / chrom.sizes lookup)")
     p_bd.add_argument("--species", default=None, help="species name (-i only)")
-    p_bd.add_argument("--with-rba", "--with-rbi", "--with-sqlite", dest="with_sqlite",
+    p_bd.add_argument("--with-rba", "--with-sqlite", dest="with_rba",
                       action="store_true",
-                      help="for -gtf/-gff: also emit an RBrowser Index (.rba) "
-                           "alongside the sorted/bgzip/tabix outputs")
+                      help="for -gtf/-gff: also emit a full RBrowser Annotation "
+                           "index (.rba) alongside the sorted/bgzip/tabix outputs")
+    p_bd.add_argument("--with-rbi", dest="with_rbi",
+                      action="store_true",
+                      help="for -gtf/-gff: also emit a lightweight RBrowser Index "
+                           "(.rbi) alongside the sorted/bgzip/tabix outputs")
+    p_bd.add_argument("--no-gram3", action="store_true",
+                      help="for .rbi builds: skip the 3-gram table (smallest "
+                           "index; exact + prefix lookup only)")
     p_bd.add_argument("--source-name", default=None,
-                      help="annotation source label stored in .rba metadata "
+                      help="annotation source label stored in .rba/.rbi metadata "
                            "(e.g. GENCODE, Ensembl)")
     p_bd.add_argument("--species-name", default=None,
-                      help="species label stored in .rba metadata")
+                      help="species label stored in .rba/.rbi metadata")
     p_bd.add_argument("--genome", default=None,
-                      help="genome/assembly label stored in .rba metadata (e.g. hg38)")
+                      help="genome/assembly label stored in .rba/.rbi metadata (e.g. hg38)")
     p_bd.add_argument("--annotation-version", default=None,
-                      help="annotation version stored in .rba metadata (e.g. v45)")
+                      help="annotation version stored in .rba/.rbi metadata (e.g. v45)")
     p_bd.add_argument("--synonyms-file", "--synonyms", default=None, dest="synonyms_file",
                       help="HGNC-style TSV (symbol/alias_symbol/prev_symbol/"
                            "ensembl_gene_id) to inject as gene_synonym aliases "
@@ -264,11 +321,21 @@ def main(argv: list[str] | None = None) -> int:
                       resources=args.resources, out=args.out, force=args.force,
                       auto_download=not args.no_download,
                       include_disabled=args.include_disabled)
-        if args.no_test:
-            return 0
-        failed = test_targets(species=species, assembly=args.assembly, out=args.out,
-                              include_disabled=args.include_disabled)
+        failed = False
+        if not args.no_test:
+            failed = test_targets(species=species, assembly=args.assembly,
+                                  out=args.out,
+                                  include_disabled=args.include_disabled)
+        if not args.no_flat:
+            publish_targets(species=species, assembly=args.assembly, out=args.out,
+                            include_disabled=args.include_disabled)
         return 1 if failed else 0
+    if args.cmd == "publish":
+        species = _resolve_species(args.species, args.assembly)
+        publish_targets(species=species, assembly=args.assembly, out=args.out,
+                        include_disabled=args.include_disabled,
+                        keep_build=args.keep_build, keep_raw=args.keep_raw)
+        return 0
     if args.cmd == "test":
         species = _resolve_species(args.species, args.assembly)
         failed = test_targets(species=species, assembly=args.assembly, out=args.out,

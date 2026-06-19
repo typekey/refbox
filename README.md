@@ -16,6 +16,10 @@ inputs:
 - Repeats (UCSC RepeatMasker `rmsk.txt.gz` → BED + GTF; `.fa.out.gz` report)
 - RNAcentral non-coding RNA annotations (direct download _or_ liftover from another assembly)
 - ENCODE SCREEN cCREs
+- UCSC cytogenetic bands → tabix BED + bigBed (`cytoBand`/`cytoBandIdeo`, or the T2T `cytoBandMapped.bb` expanded to TSV)
+- Static search indexes for in-browser gene/transcript lookup — the full **`.rba`** (SQLite + FTS5 + trigram + annotation structure) and the compact lite **`.rbi`** (B-tree name→position lookup)
+
+📖 **Full documentation** (bilingual 中文 / English, Material for MkDocs) lives under [`docs/`](docs/) — run `mkdocs serve` to browse it locally.
 
 It ships a registry of **26 species / 42 assemblies** (human, mouse, rat, dog,
 cow, pig, chimp, gorilla, zebrafish, fly, worm, sea urchin, yeast, plants,
@@ -45,15 +49,22 @@ cross-assembly), `bedToBigBed` (for `refbox build -bed`), GNU `sort`/`grep`.
 
 ```
 refbox download   # only fetch raw files configured in species.yaml
-refbox pull       # full pipeline: download (if missing) + build + test
+refbox pull       # full pipeline: download (if missing) + build + test + publish
+refbox publish    # flatten an existing build/ tree to <Assembly>.<name>
 refbox test       # validate build/ outputs
 refbox build      # single-file / directory build for arbitrary inputs
 ```
 
 ### `refbox pull` — the registry-driven pipeline
 
+`pull` runs download → build → test → **publish**. By default the per-assembly
+`build/` outputs are *flattened* to the published layout
+`<out>/<Species>/<Assembly>/<Assembly>.<name>` (e.g. `GRCh38.genome.fa.gz`,
+`GRCh38.cytoband.bb`) and the `build/`/`raw/` subdirectories are removed. Pass
+`--no-flat` to keep the `build/` + `raw/` working tree instead.
+
 ```bash
-# Fetch + build + validate Human GRCh38 (uses bundled species.yaml).
+# Fetch + build + validate + publish Human GRCh38 (uses bundled species.yaml).
 refbox pull --species Homo_sapiens --assembly GRCh38
 
 # --species is optional; it is inferred from --assembly via the registry.
@@ -61,23 +72,40 @@ refbox pull --assembly GRCm38
 
 # Loop every assembly in the registry, including ones marked enabled: false.
 refbox pull --include-disabled --resource genome transcriptome \
-            annotation_gtf annotation_gff3 repeats_rmsk rnacentral
+            annotation_gtf annotation_gff3 repeats_rmsk rnacentral cytoband
 
 # Pull only specific resources.
 refbox pull --assembly GRCh38 --resource ccre
+
+# Keep the build/ + raw/ working tree instead of the flat published layout.
+refbox pull --assembly GRCh38 --no-flat
 ```
 
 | Flag | Meaning |
 |---|---|
 | `--species` | optional filter; inferred from `--assembly` when omitted |
 | `--assembly` | optional filter; omit to run every assembly that matches `--species` |
-| `--resource` | subset of `genome transcriptome annotation_gtf annotation_gff3 repeats_rmsk repeats_bed repeats_gtf repeats_fa rnacentral ccre` |
+| `--resource` | subset of `genome transcriptome annotation_gtf annotation_gff3 repeats_rmsk repeats_bed repeats_gtf repeats_fa rnacentral ccre cytoband` |
 | `--include-disabled` | also process assemblies with `enabled: false` |
 | `--out DIR` | output root (default: `$REFBOX_OUT` or `$PWD`) |
 | `--force` | rebuild even when outputs exist |
 | `--no-download` | skip the auto-download phase |
 | `--no-test` | skip the post-build validation |
+| `--no-flat` | keep the `build/` + `raw/` layout (skip the publish/flatten step) |
 | `-v` | verbose / DEBUG logging |
+
+### `refbox publish` — flatten to the published layout
+
+`pull` runs this automatically unless `--no-flat` is given; run it standalone to
+flatten an existing `build/` tree (or re-flatten after a `--no-flat` build). Each
+`build/<name>` file is moved to `<Assembly>.<name>` in the assembly directory and
+`raw/` is dropped.
+
+```bash
+refbox publish --assembly GRCh38                 # one assembly
+refbox publish --include-disabled                # everything in the registry
+refbox publish --assembly GRCh38 --keep-raw      # keep raw/ downloads
+```
 
 ### `refbox build` — single-file / directory build
 
@@ -134,27 +162,28 @@ refbox test     --include-disabled                 # everything in the registry
 
 ---
 
-## RBrowser Index `.rba` (for in-browser transcript/gene search)
+## Search indexes: full `.rba` vs lite `.rbi`
 
 `tabix` answers *positional* range queries; it cannot answer "what is TP53?".
-For that, `refbox` can build a **standalone, read-only RBrowser Index** — a
-`.rba` file — from a GTF/GFF3 that powers exact / prefix-autocomplete /
-fuzzy-substring / alias search.
+For that, `refbox` builds **standalone, read-only search indexes** from a GTF/GFF3.
+There are **two** families, and they are **different builders, not aliases**:
 
-| | |
-|---|---|
-| **Name** | RBrowser Indexed Annotation Database |
-| **File extension** | `.rba` |
-| **Storage engine** | SQLite |
-| **Search engine** | SQLite FTS5 |
-| **Access** | static file + SQLite WASM / HTTP Range VFS (no backend) |
-| **Purpose** | static web-friendly gene / transcript / alias search and coordinate lookup |
+| | `.rba` — **full** | `.rbi` — **lite** |
+|---|---|---|
+| Build with | `refbox build -rba` | `refbox build -rbi` |
+| Name | RBrowser Indexed Annotation Database | RBrowser Index |
+| Engine | SQLite + FTS5 (prefix + trigram) | SQLite (B-tree `term` table) |
+| Search | exact / prefix / fuzzy-substring / **alias** | exact / prefix / autocomplete (+ optional 3-gram fuzzy) |
+| Also holds | full **annotation structure** (exon/CDS/UTR), `payload_json`, synonyms, RNAcentral ncRNAs | display name + genomic **position** only |
+| Size (GENCODE) | ~1 GB | a few tens of MB |
+| Access | static file + SQLite WASM / HTTP Range VFS (no backend) | same |
 
-> **`.rba` = "RBrowser Index".** Internally it is an ordinary **SQLite database
-> with FTS5** search tables; the dedicated extension just signals the format and
-> its intended use. It is hosted as a **static file** and queried directly from
-> the browser via **SQLite WASM + an HTTP Range VFS** — no backend service
-> required. (Naming, e.g. `hg38.gencode.v45.transcript.rba`.)
+> **Rule of thumb.** Use `.rba` when the browser needs alias/fuzzy search or the
+> annotation structure to render features without extra requests. Use `.rbi` when
+> you only need fast name→position autocomplete and want a small static file.
+> Suggested naming: `hg38.gencode.v45.transcript.rba` / `.rbi`.
+
+### Build the full `.rba`
 
 ```bash
 # build it next to the tabix output (one command)
@@ -171,8 +200,23 @@ refbox build -rba gencode.v45.annotation.gtf.gz -o OUT.rba \
              --synonyms hgnc_complete_set.txt --force
 ```
 
-> Back-compat: `-rbi` / `--with-rbi` and `-sqlite` / `--with-sqlite` remain
-> accepted aliases for `-rba` / `--with-rba`.
+### Build the lite `.rbi`
+
+```bash
+# standalone lite index (compact name->position lookup)
+refbox build -rbi gencode.v45.annotation.gtf.gz -o hg38.gencode.v45.rbi \
+             --source-name GENCODE --genome hg38 --annotation-version v45 --force
+
+# or next to the tabix output
+refbox build -gtf gencode.v45.annotation.gtf.gz --with-rbi \
+             --source-name GENCODE --genome hg38 --annotation-version v45
+
+# smallest possible (exact + prefix only; skip the 3-gram fuzzy table)
+refbox build -rbi gencode.v45.annotation.gtf.gz -o OUT.rbi --no-gram3 --force
+```
+
+> Back-compat: `-sqlite` / `--with-sqlite` remain accepted aliases for
+> `-rba` / `--with-rba`. (`-rbi` is **not** an alias — it builds the lite index.)
 
 > GENCODE/Ensembl annotations do **not** carry common gene synonyms (`OCT4`,
 > `p53`, `Nanog`…). Pass `--synonyms` with an HGNC `hgnc_complete_set.txt` to
@@ -196,22 +240,9 @@ refbox build -rba gencode.v45.annotation.gff3.gz -o human.rba \
 > `Metazoan-SRP-RNA`. Names are always token-like (no spaces/special chars);
 > a generic type word (`tRNA`) or an over-long sentence falls back to the URS
 > accession. The full original description is kept as a searchable alias, so
-> recall is unchanged. See [`script/clean_rnacentral_gff.py`](script/clean_rnacentral_gff.py)
-> to preview the mapping (`--preview`) or rewrite a GFF3 with `gene_name=`.
+> recall is unchanged.
 
-The helper scripts in [`script/`](script/) are dependency-free (Python standard
-library only — they load the self-contained `refbox.sqlite_index` module
-directly, so they run even without the rest of refbox installed):
-
-```bash
-python script/build_rbrowser_sqlite_index.py  --input ANNOT.gtf.gz --output idx.rba \
-        --source-name GENCODE --species human --genome hg38 --annotation-version v45 --force
-python script/inspect_rbrowser_sqlite_index.py --db idx.rba
-python script/test_rbrowser_sqlite_search.py   --db idx.rba \
-        --queries TP53 ENST00000269305 p53 BRCA1 MALAT1 ACTB --repeat 100 --limit 10
-```
-
-### What it indexes
+### What `.rba` indexes
 
 One `feature` row per **gene** and per **transcript**, with the full structure
 (exon starts/ends, CDS span, 5′/3′ UTR spans, biotype, source), a `search_text`
@@ -228,7 +259,7 @@ CCDS / HGNC / protein IDs, GFF3 `Alias` / `Dbxref` (RefSeq) / `gene_synonym`.
 | `feature_fts` | FTS5 prefix/autocomplete (`prefix='2 3 … 10'`) |
 | `feature_trigram` | FTS5 `trigram` tokenizer for substring/fuzzy search (graceful LIKE fallback if unavailable) |
 
-### Search ranking (mirrored by `test_rbrowser_sqlite_search.py`)
+### `.rba` search ranking
 
 exact `transcript_id` → `transcript_name` → `gene_name` → `gene_id` → alias
 exact → FTS prefix → trigram substring → LIKE fallback. The browser should run
@@ -242,9 +273,49 @@ index seeks, not table scans.
 (GTF/GFF convention) for display; `chrom_start0` / `chrom_end0` add the
 **0-based half-open** span for rendering. This is recorded in `metadata`.
 
+### What the lite `.rbi` holds
+
+The `.rbi` keeps only what name→position autocomplete needs, so it stays small
+(a few tens of MB vs ~1 GB) and resolves queries with plain B-tree seeks.
+
+| Table | Purpose |
+|---|---|
+| `record` | one row per gene/transcript — display name + genomic position only |
+| `term` | `(term_norm, term_raw, field, record_id, priority)` `WITHOUT ROWID`; PK leads with `term_norm` so exact (`= ?`) and prefix (`>= lo AND < hi`) are B-tree range scans |
+| `gram3` | optional 3-gram → record map for fuzzy/partial recall (default on; `--no-gram3` to skip) |
+| `metadata` | format (`RBI`) + provenance (source/species/genome/version/counts) |
+
+The `.rbi` search tiers: exact → prefix → separator-free → version-stripped →
+3-gram fuzzy (if present); `refbox.lite_index.search()` is the reference
+implementation. It returns a `(mode, results)` tuple.
+
+### Programmatic use
+
+```python
+# full .rba
+from refbox.sqlite_index import build_sqlite_index, open_readonly, search
+db  = build_sqlite_index("gencode.v45.annotation.gtf.gz", "idx.rba",
+                         source_name="GENCODE", genome="hg38", force=True)
+con = open_readonly(db)
+for hit in search(con, "TP53", limit=10):
+    print(hit["matched_field"], hit["gene_name"], hit["transcript_id"])
+
+# lite .rbi
+from refbox.lite_index import build_lite_index, open_readonly, search
+db  = build_lite_index("gencode.v45.annotation.gtf.gz", "idx.rbi",
+                       source_name="GENCODE", genome="hg38", force=True)
+con = open_readonly(db)
+mode, results = search(con, "TP53", limit=10)
+for hit in results:
+    print(hit["gene_name"], hit["chrom"], hit["start"], hit["end"])
+```
+
 ---
 
 ## Output layout
+
+During a run, each assembly has a `raw/` (downloads) and `build/`
+(browser-loadable) working tree:
 
 ```
 {REFBOX_OUT}/
@@ -259,6 +330,7 @@ index seeks, not table scans.
         repeats_fa.fa
         rnacentral.gff3              # may be lifted from another assembly
         ccre.bed
+        cytoband.tsv                 # UCSC cytoBand[.Ideo] text, or a bigBed (hs1)
       build/                        # browser-loadable
         genome.fa.gz                 + .fai + .gzi
         chrom.sizes
@@ -270,6 +342,30 @@ index seeks, not table scans.
         repeats.sorted.gtf.gz        + .tbi
         rnacentral.sorted.gff3.gz    + .tbi
         ccre.sorted.bed.gz           + .tbi
+        cytoband.sorted.bed.gz       + .tbi
+        cytoband.bb                          # bigBed (bed4+1 with gieStain)
+```
+
+### Published layout (default)
+
+`pull` finishes with the **publish** step (skip it with `--no-flat`), which
+flattens each `build/<name>` to `<Assembly>.<name>` directly under the assembly
+directory and removes `build/`/`raw/`:
+
+```
+{REFBOX_OUT}/
+  {Species}/
+    {Assembly}/
+      {Assembly}.genome.fa.gz            + .fai + .gzi
+      {Assembly}.chrom.sizes
+      {Assembly}.annotation.sorted.gtf.gz   + .tbi
+      {Assembly}.annotation.sorted.gff3.gz  + .tbi
+      {Assembly}.repeats.sorted.bed.gz      + .tbi
+      {Assembly}.repeats.sorted.gtf.gz      + .tbi
+      {Assembly}.rnacentral.sorted.gff3.gz  + .tbi
+      {Assembly}.ccre.sorted.bed.gz         + .tbi
+      {Assembly}.cytoband.sorted.bed.gz     + .tbi
+      {Assembly}.cytoband.bb
 ```
 
 ---
@@ -279,13 +375,15 @@ index seeks, not table scans.
 ```python
 from refbox.config   import load_config, iter_targets
 from refbox.download import download_targets
-from refbox.build    import build_targets
+from refbox.build    import build_targets, publish_targets
 from refbox.test     import test_targets
 from refbox          import file_build as fb     # single-file builders
 from refbox.ingest   import ingest_directory     # directory ingest
 from refbox.report   import build_report         # Markdown status report
-from refbox.sqlite_index import (                # static RBrowser Index (.rba)
+from refbox.sqlite_index import (                # full index (.rba)
     build_sqlite_index, search, inspect, open_readonly, normalize)
+from refbox.lite_index   import (                # lite index (.rbi)
+    build_lite_index, search as lite_search, open_readonly as lite_open)
 ```
 
 ```python
@@ -377,6 +475,13 @@ transcriptome: null
 | `repeats_fa` | `repeats_fa.fa` | _(RepeatMasker `.fa.out` report)_ |
 | `rnacentral` | `rnacentral.gff3` | `rnacentral.sorted.gff3.gz` + `.tbi` |
 | `ccre` | `ccre.bed` | `ccre.sorted.bed.gz` + `.tbi` |
+| `cytoband` | `cytoband.tsv` | `cytoband.sorted.bed.gz` + `.tbi`, `cytoband.bb` |
+
+`cytoband` pulls UCSC `cytoBand.txt.gz` (real Giemsa bands) where available,
+falling back to `cytoBandIdeo.txt.gz`. T2T/`hs1` has no text table — its
+`cytoBandMapped.bb` bigBed is downloaded and expanded to the same TSV before
+indexing. Both a tabix `cytoband.sorted.bed.gz` (region queries) and a
+`cytoband.bb` bigBed (whole-chromosome ideograms) are produced.
 
 ---
 
@@ -426,6 +531,18 @@ git push origin v0.3.0
 
 ## Changelog
 
+- **v0.6.2** — Two distinct index families: the full **`.rba`** (FTS5 + trigram +
+  annotation structure, the original) and a new lightweight **`.rbi`** (compact
+  SQLite B-tree lookup, a few tens of MB vs ~1 GB) for fast name→position
+  autocomplete. `refbox build -rba` builds the full index; `refbox build -rbi`
+  (and `--with-rbi`) builds the lite one — they are now **separate builders, not
+  aliases**. The lite `.rbi` carries display name + genomic position only (no
+  FTS5/trigram, no exon/CDS structure, no payload), resolving exact / prefix /
+  autocomplete via B-tree seeks on a normalized `term` table, with a 3-gram table
+  (on by default; `--no-gram3` to skip) for fuzzy recall. New `refbox.lite_index`
+  module + unit tests; bilingual Material for MkDocs documentation under `docs/`.
+  (Naming note: this `.rbi` is the lightweight index — distinct from the v0.6.0
+  `.rbi` that was renamed to `.rba` in v0.6.1.)
 - **v0.6.1** — Extension renamed **`.rbi` → `.rba`** to avoid the clash with
   Ruby-interface `.rbi` files. `-rba` / `--with-rba` are now primary; `-rbi` /
   `--with-rbi` (and `-sqlite` / `--with-sqlite`) stay accepted as aliases.

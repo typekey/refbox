@@ -20,6 +20,7 @@ RESOURCE_NAMES = [
     "repeats_fa",
     "rnacentral",
     "ccre",
+    "cytoband",
 ]
 
 # File extension each resource is normalized to inside raw/
@@ -34,6 +35,7 @@ RESOURCE_EXT = {
     "repeats_fa":      "fa",
     "rnacentral":      "gff3",
     "ccre":            "bed",
+    "cytoband":        "tsv",
 }
 
 import os

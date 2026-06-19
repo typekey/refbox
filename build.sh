@@ -1,17 +1,23 @@
 #!/usr/bin/env bash
-# build.sh — one-shot driver: download → build → test reference files
+# build.sh — one-shot driver around `refbox pull`:
+#   download (if missing) → build → test → publish (flatten to <Assembly>.<name>)
 #
 # Usage:
 #   ./build.sh                              # all enabled assemblies
 #   ./build.sh Homo_sapiens                 # one species (all enabled assemblies)
 #   ./build.sh Homo_sapiens GRCh38          # one species + assembly
-#   ./build.sh -- --resource genome ccre    # extra args after `--` go to refbox
+#   ./build.sh -- --resource genome cytoband   # extra args after `--` go to refbox
+#
+# Output layout (published / flat — the default):
+#   $REFBOX_OUT/<Species>/<Assembly>/<Assembly>.<name>   (no build/ or raw/)
 #
 # Environment:
-#   REFBOX_OUT       output root (default: this directory)
-#   REFBOX_CONFIG    path to species.yaml (default: bundled / ./config/species.yaml)
-#   STEPS            subset of steps to run, e.g. STEPS="download build" (default: "download build test")
-#   FORCE=1          pass --force to download and build
+#   REFBOX_OUT         output root (default: this directory's parent)
+#   REFBOX_CONFIG      path to species.yaml (default: ./config/species.yaml)
+#   FORCE=1            pass --force (re-download + rebuild)
+#   NO_TEST=1          skip the validation step (--no-test)
+#   NO_FLAT=1          keep the build/ + raw/ working tree (--no-flat)
+#   INCLUDE_DISABLED=1 also process assemblies marked enabled: false
 
 set -euo pipefail
 
@@ -44,10 +50,11 @@ FILTER=()
 (( ${#SPECIES[@]}  )) && FILTER+=(--species  "${SPECIES[@]}")
 (( ${#ASSEMBLY[@]} )) && FILTER+=(--assembly "${ASSEMBLY[@]}")
 
-FORCE_FLAG=()
-[[ "${FORCE:-}" == "1" ]] && FORCE_FLAG=(--force)
-
-STEPS="${STEPS:-download build test}"
+FLAGS=()
+[[ "${FORCE:-}" == "1" ]]            && FLAGS+=(--force)
+[[ "${NO_TEST:-}" == "1" ]]          && FLAGS+=(--no-test)
+[[ "${NO_FLAT:-}" == "1" ]]          && FLAGS+=(--no-flat)
+[[ "${INCLUDE_DISABLED:-}" == "1" ]] && FLAGS+=(--include-disabled)
 
 # ── sanity: refbox installed? ────────────────────────────────────────────────
 if ! command -v refbox >/dev/null; then
@@ -62,33 +69,22 @@ for tool in bgzip tabix samtools sort grep; do
         exit 1
     fi
 done
+# cytoband bigBed conversion needs the UCSC kent tools; warn (don't fail) so
+# runs that don't build cytoband still work.
+for tool in bedToBigBed bigBedToBed; do
+    command -v "$tool" >/dev/null || \
+        echo "WARNING: '$tool' not found; the cytoband resource will be skipped" >&2
+done
 
 echo "============================================================"
-echo " refbox driver"
+echo " refbox driver  (download → build → test → publish)"
 echo "   out      : $REFBOX_OUT"
-echo "   species  : ${SPECIES[*]:-<all>}"
+echo "   species  : ${SPECIES[*]:-<all enabled>}"
 echo "   assembly : ${ASSEMBLY[*]:-<all>}"
-echo "   steps    : $STEPS"
+echo "   flags    : ${FLAGS[*]:-<none>}"
 echo "   extra    : ${EXTRA[*]:-<none>}"
 echo "============================================================"
 
-for step in $STEPS; do
-    case "$step" in
-        download)
-            echo ">>> [1/3] refbox download"
-            refbox download "${FILTER[@]}" "${FORCE_FLAG[@]}" "${EXTRA[@]}"
-            ;;
-        build)
-            echo ">>> [2/3] refbox build"
-            refbox build    "${FILTER[@]}" "${FORCE_FLAG[@]}" "${EXTRA[@]}"
-            ;;
-        test)
-            echo ">>> [3/3] refbox test"
-            refbox test     "${FILTER[@]}" "${EXTRA[@]}"
-            ;;
-        *)
-            echo "unknown step: $step" >&2; exit 2 ;;
-    esac
-done
+refbox pull "${FILTER[@]}" "${FLAGS[@]}" "${EXTRA[@]}"
 
 echo ">>> done."

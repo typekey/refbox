@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Benchmark a lightweight RBrowser Annotation Index (.rbai).
+"""Benchmark a lightweight RBrowser Index (.rbi).
 
 Reports DB size, record/term/gram counts, and per-query latency statistics
 (avg / median / p95 / max) plus an estimated queries-per-second. Stdlib only.
@@ -7,7 +7,7 @@ Reports DB size, record/term/gram counts, and per-query latency statistics
 Example
 -------
     python benchmark_lite_rbrowser_annotation_index.py \
-        --db annotation.rbai \
+        --db annotation.rbi \
         --queries TP53 TP5 p53 ENST00000269305 BRCA1 ACTB MALAT1 protein_coding \
         --repeat 100 --limit 10
 """
@@ -45,7 +45,7 @@ def _pct(values, p):
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description="Benchmark a .rbai lite index.")
+    ap = argparse.ArgumentParser(description="Benchmark a .rbi lite index.")
     ap.add_argument("--db", required=True)
     ap.add_argument("--queries", nargs="+", required=True)
     ap.add_argument("--repeat", type=int, default=100)

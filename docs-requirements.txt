@@ -1,0 +1,6 @@
+# Dependencies to build the refbox documentation site (Material for MkDocs).
+#   pip install -r docs-requirements.txt
+#   mkdocs serve     # live preview at http://127.0.0.1:8000
+#   mkdocs build     # render the static site into site/
+mkdocs-material>=9.5
+mkdocs-static-i18n>=1.2

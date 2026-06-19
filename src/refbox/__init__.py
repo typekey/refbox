@@ -1,5 +1,5 @@
 """refbox — build standardized reference files for rbrowser genome browser."""
 
-__version__ = "0.4.1"
+__version__ = "0.6.2"
 
 from .config import RESOURCE_NAMES, load_config, iter_targets  # noqa: F401

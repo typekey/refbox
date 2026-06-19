@@ -13,6 +13,8 @@ Final output names (per assembly build/):
   repeats.sorted.bed.gz + .tbi
   rnacentral.sorted.gff3.gz + .tbi
   ccre.sorted.bed.gz + .tbi
+  cytoband.sorted.bed.gz + .tbi
+  cytoband.bb
 """
 
 from __future__ import annotations
@@ -26,6 +28,8 @@ from .config import RESOURCE_NAMES, Target, iter_targets, raw_path
 from .utils import (
     bgzip_file,
     faidx,
+    require_tool,
+    run,
     sort_bed,
     sort_gff,
     tabix,
@@ -427,6 +431,124 @@ def build_ccre(target: Target, *, force: bool = False) -> None:
     _build_sorted_bed(src, target.build_dir / "ccre.sorted.bed.gz", force=force)
 
 
+# bigBed magic number 0x8789F2EB, in little- and big-endian byte order.
+_BIGBED_MAGIC = (b"\xeb\xf2\x89\x87", b"\x87\x89\xf2\xeb")
+
+
+def _bigbed_to_cytoband_tsv(src: Path, dst: Path) -> Path:
+    """Expand a UCSC cytoBand bigBed into the canonical 5-column TSV.
+
+    T2T/hs1 serves cytobands only as a bigBed (``cytoBandMapped.bb``) rather
+    than the usual ``cytoBand.txt.gz``. ``bigBedToBed`` yields
+    chrom/start/end/name/gieStain(+name2); we keep the first five columns so the
+    output matches every other assembly's cytoBand[.Ideo].txt.gz layout.
+    """
+    from .utils import require_tool
+    require_tool("bigBedToBed")
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    full = dst.with_suffix(".full.bed")
+    log.info("$ bigBedToBed %s %s", src, full)
+    subprocess.run(["bigBedToBed", str(src), str(full)], check=True)
+    n = 0
+    with open(full) as fin, open(dst, "w") as fout:
+        for line in fin:
+            if not line.strip():
+                continue
+            c = line.rstrip("\n").split("\t")
+            if len(c) < 5:
+                continue
+            fout.write("\t".join(c[:5]) + "\n")
+            n += 1
+    full.unlink(missing_ok=True)
+    log.info("cytoband: expanded bigBed -> %d bands (%s)", n, dst.name)
+    return dst
+
+
+# autoSql for the cytoBand bigBed: 4 standard BED columns + the gieStain string
+# (col 5 is a stain label, not a numeric BED score, so a plain bed5 is invalid).
+_CYTOBAND_AS = (
+    'table cytoBand\n'
+    '"Cytogenetic band positions"\n'
+    '(\n'
+    'string chrom;      "Chromosome"\n'
+    'uint   chromStart; "Start position"\n'
+    'uint   chromEnd;   "End position"\n'
+    'string name;       "Band name"\n'
+    'string gieStain;   "Giemsa stain result"\n'
+    ')\n'
+)
+
+
+def _chrom_sizes_from_cytoband(bed: Path, dst: Path) -> Path:
+    """Derive chrom.sizes from a cytoBand BED.
+
+    Cytogenetic bands tile each chromosome end-to-end, so the largest band end
+    per chromosome equals that chromosome's length — exactly what bedToBigBed
+    needs, without having to also fetch the genome.
+    """
+    sizes: dict[str, int] = {}
+    with open(bed) as fh:
+        for line in fh:
+            if not line.strip():
+                continue
+            c = line.rstrip("\n").split("\t")
+            if len(c) < 3:
+                continue
+            end = int(c[2])
+            if end > sizes.get(c[0], 0):
+                sizes[c[0]] = end
+    with open(dst, "w") as out:
+        for chrom, size in sizes.items():
+            out.write(f"{chrom}\t{size}\n")
+    return dst
+
+
+def _cytoband_to_bigbed(sorted_bed: Path, out_bb: Path) -> None:
+    """Build cytoband.bb (bed4+1 with gieStain) from a sorted cytoBand BED."""
+    require_tool("bedToBigBed")
+    chrom_sizes = out_bb.with_name("cytoband.chrom.sizes")
+    as_file = out_bb.with_name("cytoband.as")
+    _chrom_sizes_from_cytoband(sorted_bed, chrom_sizes)
+    as_file.write_text(_CYTOBAND_AS)
+    try:
+        # -tab keeps empty band names (cytoBandIdeo has them) as real columns.
+        run(["bedToBigBed", "-tab", "-type=bed4+1", f"-as={as_file}",
+             str(sorted_bed), str(chrom_sizes), str(out_bb)])
+    finally:
+        as_file.unlink(missing_ok=True)
+        chrom_sizes.unlink(missing_ok=True)
+
+
+def build_cytoband(target: Target, *, force: bool = False) -> None:
+    src = raw_path(target, "cytoband")
+    if not src.exists():
+        return
+    # Most assemblies ship cytoBand[.Ideo].txt.gz — already a 5-column
+    # chrom/start/end/name/gieStain TSV. T2T/hs1 instead serves a bigBed, which
+    # the fetch step stores verbatim as raw/cytoband.tsv; detect its magic and
+    # expand it to the same TSV before indexing.
+    with open(src, "rb") as fh:
+        if fh.read(4) in _BIGBED_MAGIC:
+            src = _bigbed_to_cytoband_tsv(src, target.raw_dir / "cytoband.expanded.bed")
+    out_gz = target.build_dir / "cytoband.sorted.bed.gz"
+    out_bb = target.build_dir / "cytoband.bb"
+    if (_exists(out_gz) and _exists(Path(f"{out_gz}.tbi"))
+            and _exists(out_bb) and not force):
+        return
+    target.build_dir.mkdir(parents=True, exist_ok=True)
+    sorted_bed = target.build_dir / "cytoband.sorted.bed"
+    # bedToBigBed requires C-collated chrom order (matters for assemblies with
+    # many mixed-case scaffold names, e.g. strPur2); use it for both outputs.
+    run(f"grep -v -E '^(#|track|browser)' {src!s} | "
+        f"LC_COLLATE=C sort -k1,1 -k2,2n > {sorted_bed!s}", shell=True)
+    # bigBed for whole-chromosome ideogram rendering ...
+    _cytoband_to_bigbed(sorted_bed, out_bb)
+    # ... and bgzip+tabix for fast region queries.
+    bgzip_file(sorted_bed, out_gz, force=True)
+    sorted_bed.unlink(missing_ok=True)
+    tabix(out_gz, preset="bed", force=True)
+
+
 BUILDERS = {
     "genome":          build_genome,
     "transcriptome":   build_transcriptome,
@@ -438,6 +560,7 @@ BUILDERS = {
     "repeats_fa":      None,   # RepeatMasker .fa.out is a flat report — handled later
     "rnacentral":      build_rnacentral,
     "ccre":            build_ccre,
+    "cytoband":        build_cytoband,
 }
 
 
@@ -480,6 +603,50 @@ def build_targets(
             except Exception as e:
                 log.error("[%s/%s] build %s FAILED: %s",
                           tgt.species, tgt.assembly, r, e)
+
+
+def publish_targets(
+    species: list[str] | None = None,
+    assembly: list[str] | None = None,
+    *,
+    out: str | None = None,
+    include_disabled: bool = False,
+    keep_build: bool = False,
+    keep_raw: bool = False,
+) -> None:
+    """Flatten each assembly's ``build/`` outputs into the published layout.
+
+    The published reference tree is one directory per assembly, every file
+    prefixed with the assembly id and no ``build/``/``raw/`` subdirectories::
+
+        <out>/<Species>/<Assembly>/<Assembly>.<build-filename>
+
+    The mapping is uniform — a ``build/`` file keeps its name with the assembly
+    id prepended (``build/genome.fa.gz`` -> ``GRCh38.genome.fa.gz``,
+    ``build/cytoband.bb`` -> ``GRCh38.cytoband.bb``). Existing already-published
+    files are left untouched; ``raw/`` is removed unless ``keep_raw``.
+    """
+    for tgt in iter_targets(species=species, assembly=assembly, out_root=out,
+                            include_disabled=include_disabled):
+        adir = tgt.out_root / tgt.species / tgt.assembly
+        bdir = tgt.build_dir
+        moved = 0
+        if bdir.is_dir():
+            for f in sorted(bdir.iterdir()):
+                if f.is_file():
+                    f.replace(adir / f"{tgt.assembly}.{f.name}")
+                    moved += 1
+            if not keep_build:
+                try:
+                    bdir.rmdir()
+                except OSError:
+                    log.warning("[%s/%s] publish: build/ not empty, kept: %s",
+                                tgt.species, tgt.assembly, bdir)
+        if not keep_raw and tgt.raw_dir.is_dir():
+            shutil.rmtree(tgt.raw_dir)
+        if moved:
+            log.info("[%s/%s] published %d file(s) -> %s/%s.*",
+                     tgt.species, tgt.assembly, moved, adir, tgt.assembly)
 
 
 def _ensure_raw_files(target: Target, resources: list[str], *, force: bool) -> None:

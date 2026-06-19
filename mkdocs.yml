@@ -1,0 +1,113 @@
+site_name: refbox
+site_description: Build standardized, indexed reference files and static search indexes for genome browsers.
+site_author: Lei Zheng
+repo_url: https://github.com/typekey/refbox
+repo_name: typekey/refbox
+docs_dir: docs
+edit_uri: edit/main/docs/
+
+copyright: >
+  Copyright © 2025 RBrowser. Developed by Lei Zheng.<br>
+  The website content is licensed under
+  <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a>
+
+theme:
+  name: material
+  language: en
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.tracking
+    - navigation.indexes
+    - navigation.footer
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+plugins:
+  - search
+  - i18n:
+      docs_structure: suffix
+      fallback_to_default: true
+      reconfigure_material: true
+      reconfigure_search: true
+      languages:
+        - locale: en
+          default: true
+          name: English
+          build: true
+        - locale: zh
+          name: 简体中文
+          build: true
+          nav_translations:
+            Home: 首页
+            Getting Started: 快速开始
+            Installation: 安装
+            Quick Start: 快速上手
+            Commands: 命令
+            Pipeline Commands: 流水线命令
+            Build Command: build 命令
+            Search Indexes: 搜索索引
+            Full Index (.rba): 完整索引 (.rba)
+            Lite Index (.rbi): 轻量索引 (.rbi)
+            Configuration: 配置
+            species.yaml Registry: species.yaml 注册表
+            Output Layout: 输出布局
+            Python API: Python API
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: installation.md
+      - Quick Start: quickstart.md
+  - Commands:
+      - Pipeline Commands: commands/pipeline.md
+      - Build Command: commands/build.md
+  - Search Indexes:
+      - Full Index (.rba): indexes/rba.md
+      - Lite Index (.rbi): indexes/rbi.md
+  - Configuration:
+      - species.yaml Registry: config/species.md
+      - Output Layout: config/output-layout.md
+  - Python API: api.md

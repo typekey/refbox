@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "refbox"
-version = "0.5.3"
-description = "Build standardized, indexed reference files (genome, annotation, repeats, RNAcentral, cCRE) plus a static SQLite search index for genome browsers."
+version = "0.6.2"
+description = "Build standardized, indexed reference files (genome, annotation, repeats, RNAcentral, cCRE) plus static search indexes (RBrowser Index .rba and lite .rbai) for genome browsers."
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.9"

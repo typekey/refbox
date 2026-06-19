@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Build a lightweight RBrowser Annotation Index (.rbai) from a GTF/GFF/GFF3.
+"""Build a lightweight RBrowser Index (.rbi) from a GTF/GFF/GFF3.
 
-A ``.rbai`` is a small, fast, static SQLite lookup index (no FTS5/trigram, no
+A ``.rbi`` is a small, fast, static SQLite lookup index (no FTS5/trigram, no
 exon/CDS structure) for gene/transcript search + position lookup. Stdlib only.
 
 Example
 -------
     python build_lite_rbrowser_annotation_index.py \
-        --input annotation.gtf.gz --output annotation.rbai \
+        --input annotation.gtf.gz --output annotation.rbi \
         --source-name GENCODE --species human --genome hg38 \
         --annotation-version v45 --enable-gram3 --force --verbose
 """
@@ -37,10 +37,10 @@ def _load_module():
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
-        description="Build a lightweight RBrowser Annotation Index (.rbai).")
+        description="Build a lightweight RBrowser Index (.rbi).")
     ap.add_argument("--input", required=True, help="GTF/GFF/GFF3 (.gz ok)")
     ap.add_argument("--output", default=None,
-                    help="output .rbai path (default: <input>.rbai)")
+                    help="output .rbi path (default: <input>.rbi)")
     ap.add_argument("--source-name", default="", help="e.g. GENCODE, Ensembl")
     ap.add_argument("--species", default="", help="e.g. human, mouse")
     ap.add_argument("--genome", default="", help="e.g. hg38, GRCh38")
